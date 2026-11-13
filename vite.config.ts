@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     testTimeout: 30000, // PGlite start-up is slow on loaded machines
-    hookTimeout: 30000,
+    hookTimeout: 120000, // PGlite migrations in beforeAll pass 30 s when CI runs several jobs at once
     environment: 'node',
   },
 });
