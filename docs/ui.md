@@ -58,7 +58,7 @@ In `src/app.css` (`@theme`), as CSS variables switched by `data-theme` on `<html
 
 | Page | Content | Links |
 |---|---|---|
-| `/` | signed out: pitch (three features), `nav-signup`, a link to `/games/demo`; signed in: redirect 303 to `/games` | |
+| `/` | signed out: pitch (three features as cards), `nav-signup` (the demo link comes with the game-review module); signed in: redirect 303 to `/games` | |
 | `/signup`, `/login` | one card, centred, max 24rem: fields, primary submit, link to the other and to `/reset` | `next` param kept |
 | `/reset`, `/reset/[token]` | email form; new password form | to `/login` |
 | `/account` | linked usernames (one row per site: username or a link form, Unlink), language, theme, Delete account (danger, in a modal) | |
@@ -107,3 +107,15 @@ nothing only on hover, `prefers-reduced-motion` turns piece animation off. Board
 kebab-case `<page>-<element>` (`games-sync-chesscom`, `review-eval-bar`, `drill-board`), shared components their own
 name (`board`, `board-move-input`, `move-list`, `eval-bar`, `toast`, `empty-state`). Repeated items carry their id
 (`games-row` with `data-game-id`). Keep ids stable when restyling.
+
+Ids of the visitor layout and account pages (shared by the stories):
+- navigation: `nav-login`, `nav-signup`, `nav-games`, `nav-account`, `nav-logout`;
+- sign up, log in and reset: `signup-email|password|submit`, `login-email|password|submit`, `reset-email|submit`,
+  `reset-password`, `reset-password-submit`;
+- account: `account-email|lang|theme|save|delete`, `modal-delete-account`, `delete-password`, `delete-confirm`;
+- linked usernames: `link-chesscom`, `link-lichess`, `link-<site>-username`, `link-<site>-submit`, `unlink-<site>`,
+  `modal-unlink-<site>`, `unlink-<site>-confirm`;
+- games list: `games-empty`, `games-status`, `games-sync-<site>`, `games-filters`, `games-filter-submit`,
+  `games-filter-reset`, `games-list`, `games-row` (with `data-game-id`), `games-next`, `games-prev`, `games-none`;
+- game page: `game-details`, `game-site-link`, `game-moves`;
+- shared: `toast`.
