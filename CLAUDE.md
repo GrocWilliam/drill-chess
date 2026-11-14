@@ -35,6 +35,7 @@ References: `docs/prd.md` (product), `docs/architecture.md` (structure, enforced
   back rounded to one decimal. Imports `src/lib/chess/` relatively (acceptance Vitest has no `$lib` alias).
   `POST /api/games/[id]/analysis` (`api/games/[id]/analysis/+server.ts`): 401, non-JSON → 400 `body`, 201/400/404.
   `/games` `+page.server.ts` combines both: `analysed` (gameId → accuracy of the player's side, for the `games-analysed` badge).
+- `src/lib/server/stats/` (read only, no `schema.ts`; queries `games`/`analyses` tables directly, the one module allowed to): pure `filters.ts` `parseStatsFilters(params, now)` (`site`, `time`, `period` 30d|90d|365d|all → `since` = now − N×24 h, `openingsColour`, `series` `<site>-<time>`; Zod `.catch`), pure `score.ts` `scorePercent`, `index.ts` `getStats(userId, f)` (one grouped `count(*) filter` query per block, `Promise.all`; `colour`, `time` filled; `openings`, `rating`, `mistakes` placeholders for later stories). `GET /api/stats` (`api/stats/+server.ts`, 401 checked itself).
 - `src/lib/server/gateway/`: the only code reaching outside (`http.ts` `httpGet`: User-Agent, 15 s timeout, one retry, `GatewayError`; `chesscom.ts` (`listArchives`,
   `fetchArchive`, Zod-validated), `lichess.ts`; `mail.ts` `sendMail`: nodemailer with `SMTP_URL`, else a JSON file in `MAIL_OUTBOX`). Password reset: `accounts.requestPasswordReset`/`resetPassword`; `/reset/[token]` GET with a bad token is `error(400)` rendered by its `+error.svelte`.
 - Auth: `hooks.server.ts` `handle` resolves the `session` cookie to `locals.user` (its `lang`/`theme` override the
@@ -94,3 +95,5 @@ project differs, say so here; project-specific how-tos go in `.claude/skills/`. 
 - Code imported by routes is also loaded at build time: never parse config or open the database at module load.
 - A test that starts PGlite on disk or runs all migrations in its body (not in `beforeAll`) needs its own 120 s timeout:
   the 30 s default fails under CI load.
+- CI shard `acceptance-N` runs every `tests/acceptance/*/run.sh` whose index (glob order) % 6 = N, not only this story's;
+  list them with `i=0; for s in tests/acceptance/*/run.sh; do [ $((i++ % 6)) -eq N ] && echo $s; done` to reproduce.
