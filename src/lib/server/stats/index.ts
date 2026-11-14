@@ -1,8 +1,9 @@
-// The `stats` module: read-only aggregates over the user's games (and, in later stories, analyses).
-// It reads the `games` table directly (docs/architecture.md), never writes.
+// The `stats` module: read-only aggregates over the user's games and their analyses.
+// It reads the `games` and `analyses` tables directly (docs/architecture.md), never writes.
 import { and, asc, desc, eq, gte, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { games } from '../games/schema';
+import { analyses } from '../review/schema';
 import { TIME_CLASSES, type StatsFilters, type TimeClass } from './filters';
 import { scorePercent } from './score';
 
@@ -29,7 +30,6 @@ export interface Stats {
   openings: (Counts & { eco: string | null; opening: string | null })[];
   /** Filled by a later story. */
   rating: { series: unknown[] };
-  /** Filled by a later story. */
   mistakes: { games: number; accuracy: number | null; byPhase: Record<Phase, MarkCounts> };
 }
 
@@ -92,20 +92,80 @@ async function openingsBlock(where: SQL | undefined, colour: StatsFilters['openi
 }
 
 const noMarks = (): MarkCounts => ({ inaccuracy: 0, mistake: 0, blunder: 0 });
+const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
+const MARKS = ['inaccuracy', 'mistake', 'blunder'] as const;
+const round1 = (x: number) => Math.round(x * 10) / 10;
+
+/** The analysed games among the filtered ones: their count and the player's average accuracy. */
+async function analysedSummary(where: SQL | undefined) {
+  const [row] = await db
+    .select({
+      games: sql<number>`count(*)::int`,
+      accuracy: sql<number | null>`avg(case when ${games.colour} = 'white' then ${analyses.accuracyWhite} else ${analyses.accuracyBlack} end)::float8`,
+    })
+    .from(games)
+    .innerJoin(analyses, eq(analyses.gameId, games.id))
+    .where(where);
+  return { games: Number(row?.games ?? 0), accuracy: row?.accuracy == null ? null : Number(row.accuracy) };
+}
+
+/**
+ * The player's marks of the filtered analysed games, per phase and kind. `marks[i]`/`phases[i]` are for ply i + 1:
+ * White's plies are the odd ordinalities, Black's the even ones. Both arrays are zipped in one `rows from` scan
+ * (joining two `with ordinality` scans on `n` re-runs the second per row: about 1 s at 1,000 analyses).
+ */
+async function markTotals(where: SQL | undefined) {
+  return db
+    .select({ phase: sql<string>`t.phase`, mark: sql<string>`t.mark`, n: sql<number>`count(*)::int` })
+    .from(games)
+    .innerJoin(analyses, eq(analyses.gameId, games.id))
+    .innerJoin(
+      sql`lateral rows from (jsonb_array_elements_text(${analyses.marks}), jsonb_array_elements_text(${analyses.phases})) with ordinality t(mark, phase, n)`,
+      sql`true`,
+    )
+    .where(
+      and(
+        where,
+        sql`t.mark is not null`,
+        sql`(t.n - 1) % 2 = case when ${games.colour} = 'white' then 0 else 1 end`,
+      ),
+    )
+    .groupBy(sql`t.phase`, sql`t.mark`);
+}
+
+async function mistakesBlock(userId: string, where: SQL | undefined): Promise<Stats['mistakes']> {
+  // `analyses.user_id` repeats the owner so the planner can use `analyses_user_id_idx`.
+  const w = and(where, eq(analyses.userId, userId));
+  const [summary, totals] = await Promise.all([analysedSummary(w), markTotals(w)]);
+  const byPhase = { opening: noMarks(), middlegame: noMarks(), endgame: noMarks() };
+  if (summary.games > 0) {
+    for (const t of totals) {
+      const phase = t.phase as Phase;
+      const mark = t.mark as (typeof MARKS)[number];
+      if (PHASES.includes(phase) && MARKS.includes(mark)) byPhase[phase][mark] = round1(Number(t.n) / summary.games);
+    }
+  }
+  return {
+    games: summary.games,
+    accuracy: summary.games > 0 && summary.accuracy !== null ? round1(summary.accuracy) : null,
+    byPhase,
+  };
+}
 
 /** The statistics of `userId`'s games matching the filters, one query per block. */
 export async function getStats(userId: string, f: StatsFilters): Promise<Stats> {
   const where = conditions(userId, f);
-  const [colour, time, openings] = await Promise.all([
+  const [colour, time, openings, mistakes] = await Promise.all([
     colourBlock(where),
     timeBlock(where),
     openingsBlock(where, f.openingsColour),
+    mistakesBlock(userId, where),
   ]);
   return {
     colour,
     time,
     openings,
     rating: { series: [] },
-    mistakes: { games: 0, accuracy: null, byPhase: { opening: noMarks(), middlegame: noMarks(), endgame: noMarks() } },
+    mistakes,
   };
 }

@@ -1,5 +1,5 @@
 // Database setup helpers for the stats module (US-66), for Vitest acceptance tests run on the process `db`
-// with PGLITE_DATA_DIR=memory://. Setup and reads only: no assertions of a criterion here.
+// with PGLITE_DATA_DIR=memory:// (US-66, US-69). Setup and reads only: no assertions of a criterion here.
 
 type Site = 'chesscom' | 'lichess';
 type TimeClass = 'bullet' | 'blitz' | 'rapid' | 'classical' | 'daily';
@@ -65,14 +65,84 @@ export async function addGames(userId: string, n: number, g: GameSpec): Promise<
   for (let i = 0; i < n; i++) await addGame(userId, g);
 }
 
-/** Stores an analysis of the 2-ply game `gameId` of `userId` directly in `analyses`. */
-export async function addAnalysis(userId: string, gameId: string): Promise<void> {
+type Mark = 'inaccuracy' | 'mistake' | 'blunder' | null;
+type PhaseName = 'opening' | 'middlegame' | 'endgame';
+
+export interface AnalysisSpec {
+  marks: Mark[];
+  phases: PhaseName[];
+  accuracyWhite: number;
+  accuracyBlack: number;
+}
+
+/** A stored-analysis row for `gameId`: evals/best sized to the marks (contents irrelevant to the stats). */
+const analysisRow = (userId: string, gameId: string, a: AnalysisSpec) => ({
+  gameId, userId, depth: 6,
+  evals: Array.from({ length: a.marks.length + 1 }, () => ({ cp: 0 })),
+  best: Array.from({ length: a.marks.length }, () => null),
+  marks: a.marks, phases: a.phases, accuracyWhite: a.accuracyWhite, accuracyBlack: a.accuracyBlack,
+});
+
+/**
+ * Stores an analysis of game `gameId` of `userId` directly in `analyses`. Without `a`: the 2-ply analysis
+ * marks [null, 'mistake'], phases opening, accuracies 91.4 / 62.7.
+ */
+export async function addAnalysis(userId: string, gameId: string, a?: AnalysisSpec): Promise<void> {
   const { db } = await import('../../../src/lib/server/db/index');
   const { analyses } = await import('../../../src/lib/server/review/schema');
-  await db.insert(analyses).values({
-    gameId, userId, depth: 6, evals: [{ cp: 20 }, { cp: -300 }, { cp: -280 }], best: ['d2d4', null],
-    marks: [null, 'mistake'], phases: ['opening', 'opening'], accuracyWhite: 91.4, accuracyBlack: 62.7,
-  });
+  const spec = a ?? { marks: [null, 'mistake'], phases: ['opening', 'opening'], accuracyWhite: 91.4, accuracyBlack: 62.7 };
+  await db.insert(analyses).values(analysisRow(userId, gameId, spec));
+}
+
+/** Inserts one game of `userId` and stores its analysis → the game's id. */
+export async function addAnalysedGame(userId: string, g: GameSpec, a: AnalysisSpec): Promise<string> {
+  const id = await addGame(userId, g);
+  await addAnalysis(userId, id, a);
+  return id;
+}
+
+/**
+ * Bulk setup: inserts `n` games of `userId` in batches (sites, time classes, colours and results cycle; ended
+ * one hour apart going back from an hour ago) → their ids, newest first.
+ */
+export async function addManyGames(userId: string, n: number): Promise<string[]> {
+  const { db } = await import('../../../src/lib/server/db/index');
+  const { games } = await import('../../../src/lib/server/games/schema');
+  const sites: Site[] = ['chesscom', 'lichess'];
+  const times: TimeClass[] = ['bullet', 'blitz', 'rapid', 'classical', 'daily'];
+  const results: Result[] = ['win', 'draw', 'loss'];
+  const ids: string[] = [];
+  const start = Date.now() - 3600_000;
+  for (let i = 0; i < n; i += 500) {
+    const rows = Array.from({ length: Math.min(500, n - i) }, (_, k) => {
+      const j = i + k;
+      return {
+        userId, site: sites[j % 2], siteGameId: crypto.randomUUID(), url: 'https://example.test/game',
+        endedAt: new Date(start - j * 3600_000), timeClass: times[j % 5], clock: '180+2',
+        colour: (j % 2 === 0 ? 'white' : 'black') as Colour, result: results[j % 3],
+        whiteName: 'made_up_white', blackName: 'made_up_black', pgn: PGN, plies: 60,
+      };
+    });
+    const out = await db.insert(games).values(rows).returning({ id: games.id });
+    ids.push(...out.map((r) => r.id as string));
+  }
+  return ids;
+}
+
+/** Bulk setup: stores the same analysis `a` for every game of `gameIds` (of `userId`), in batches. */
+export async function addManyAnalyses(userId: string, gameIds: string[], a: AnalysisSpec): Promise<void> {
+  const { db } = await import('../../../src/lib/server/db/index');
+  const { analyses } = await import('../../../src/lib/server/review/schema');
+  for (let i = 0; i < gameIds.length; i += 200) {
+    await db.insert(analyses).values(gameIds.slice(i, i + 200).map((id) => analysisRow(userId, id, a)));
+  }
+}
+
+/** Milliseconds `fn` takes to resolve → { ms, value }. */
+export async function timed<T>(fn: () => Promise<T>): Promise<{ ms: number; value: T }> {
+  const t0 = performance.now();
+  const value = await fn();
+  return { ms: performance.now() - t0, value };
 }
 
 /** Every row of `games` and `analyses` (all users), ordered by id, as stored. */
