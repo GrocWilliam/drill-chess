@@ -1,6 +1,6 @@
 // The `stats` module: read-only aggregates over the user's games (and, in later stories, analyses).
 // It reads the `games` table directly (docs/architecture.md), never writes.
-import { and, eq, gte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { games } from '../games/schema';
 import { TIME_CLASSES, type StatsFilters, type TimeClass } from './filters';
@@ -26,8 +26,7 @@ export interface MarkCounts {
 export interface Stats {
   colour: (Counts & { colour: Colour })[];
   time: (Counts & { time: TimeClass })[];
-  /** Filled by a later story. */
-  openings: unknown[];
+  openings: (Counts & { eco: string | null; opening: string | null })[];
   /** Filled by a later story. */
   rating: { series: unknown[] };
   /** Filled by a later story. */
@@ -72,16 +71,40 @@ async function timeBlock(where: SQL | undefined): Promise<Stats['time']> {
     .sort((a, b) => order(TIME_CLASSES, a.time) - order(TIME_CLASSES, b.time));
 }
 
+/** The 10 most played openings; every game without an opening name is one group (eco and opening null). */
+async function openingsBlock(where: SQL | undefined, colour: StatsFilters['openingsColour']): Promise<Stats['openings']> {
+  const w = colour === 'both' ? where : and(where, eq(games.colour, colour));
+  const opening = sql<string | null>`${games.opening}`;
+  const eco = sql<string | null>`case when ${games.opening} is null then null else ${games.eco} end`;
+  const rows = await db
+    .select({ eco, opening, ...countColumns })
+    .from(games)
+    .where(w)
+    .groupBy(eco, opening)
+    .orderBy(
+      desc(sql`count(*)`),
+      desc(sql`(2 * count(*) filter (where ${games.result} = 'win') + count(*) filter (where ${games.result} = 'draw'))::float8 / (2 * count(*))::float8`),
+      sql`${eco} asc nulls last`,
+      asc(opening),
+    )
+    .limit(10);
+  return rows.map((r) => ({ eco: r.eco, opening: r.opening, ...counts(r) }));
+}
+
 const noMarks = (): MarkCounts => ({ inaccuracy: 0, mistake: 0, blunder: 0 });
 
 /** The statistics of `userId`'s games matching the filters, one query per block. */
 export async function getStats(userId: string, f: StatsFilters): Promise<Stats> {
   const where = conditions(userId, f);
-  const [colour, time] = await Promise.all([colourBlock(where), timeBlock(where)]);
+  const [colour, time, openings] = await Promise.all([
+    colourBlock(where),
+    timeBlock(where),
+    openingsBlock(where, f.openingsColour),
+  ]);
   return {
     colour,
     time,
-    openings: [],
+    openings,
     rating: { series: [] },
     mistakes: { games: 0, accuracy: null, byPhase: { opening: noMarks(), middlegame: noMarks(), endgame: noMarks() } },
   };

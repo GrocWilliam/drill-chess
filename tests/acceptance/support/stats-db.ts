@@ -39,6 +39,8 @@ export interface GameSpec {
   colour: Colour;
   result: Result;
   endedAt?: Date;
+  eco?: string | null;
+  opening?: string | null;
 }
 
 const PGN = '[Event "Made-up game"]\n[White "made_up_white"]\n[Black "made_up_black"]\n[Result "*"]\n\n1. e4 e5 *\n';
@@ -52,7 +54,7 @@ export async function addGame(userId: string, g: GameSpec): Promise<string> {
     .values({
       userId, site: g.site ?? 'chesscom', siteGameId: crypto.randomUUID(), url: 'https://example.test/game',
       endedAt: g.endedAt ?? new Date(Date.now() - 3600_000), timeClass: g.timeClass ?? 'blitz', clock: '180+2',
-      colour: g.colour, result: g.result, whiteName: 'made_up_white', blackName: 'made_up_black', pgn: PGN, plies: 2,
+      colour: g.colour, result: g.result, whiteName: 'made_up_white', blackName: 'made_up_black', pgn: PGN, plies: 2, eco: g.eco ?? null, opening: g.opening ?? null,
     })
     .returning();
   return row.id as string;

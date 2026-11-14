@@ -34,3 +34,9 @@ export async function listedGamesOf(baseUrl, token, query = '') {
 
 /** The sum of `games` over the rows of a stats block (e.g. `colour`). */
 export const gamesIn = (rows) => (rows ?? []).reduce((n, r) => n + r.games, 0);
+
+/** The `openings` rows of GET /api/stats?<query> (200 expected by the test through `status`) → { status, rows }. */
+export async function requestOpenings(baseUrl, token, query = '') {
+  const r = await requestStats(baseUrl, token, query);
+  return { status: r.status, rows: r.body?.openings ?? null, colour: r.body?.colour ?? null };
+}

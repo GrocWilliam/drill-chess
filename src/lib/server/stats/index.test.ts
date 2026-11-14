@@ -79,4 +79,26 @@ describe('getStats', () => {
       mistakes: { games: 0, accuracy: null, byPhase: { opening: zero, middlegame: zero, endgame: zero } },
     });
   });
+
+  it('openings: unknown group, tie-break, colour filter', async () => {
+    const u = await user();
+    const add = async (eco: string | null, opening: string | null, colour: string, result: string, n: number) => {
+      for (let i = 0; i < n; i++)
+        await db.insert(gs.games).values({
+          userId: u, site: 'chesscom', siteGameId: crypto.randomUUID(), url: 'https://example.test/g', endedAt: daysAgo(1),
+          timeClass: 'blitz', clock: '180+2', colour, result, whiteName: 'w', blackName: 'b', pgn: '1. e4 *', plies: 1, eco, opening,
+        });
+    };
+    await add('B00', null, 'white', 'win', 2);
+    await add(null, null, 'black', 'loss', 1);
+    await add('C50', 'Italian Game', 'white', 'win', 2);
+    await add('A00', 'Polish Opening', 'white', 'draw', 1);
+    const both = (await stats.getStats(u, parse(new URLSearchParams(), now))).openings;
+    expect(both.map((r) => [r.eco, r.opening, r.games])).toEqual([
+      [null, null, 3], ['C50', 'Italian Game', 2], ['A00', 'Polish Opening', 1],
+    ]);
+    const black = (await stats.getStats(u, parse(new URLSearchParams('openingsColour=black'), now))).openings;
+    expect(black).toHaveLength(1);
+    expect(black[0].score).toBe(0);
+  });
 });
