@@ -14,6 +14,12 @@
   </svg>
 {/snippet}
 
+{#snippet statsIcon()}
+  <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M5 20V10M12 20V4M19 20v-7" />
+  </svg>
+{/snippet}
+
 <header class="border-b border-border bg-surface">
   <nav aria-label={t('nav.main')} class="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-2">
     <a href={signedIn ? '/games' : '/'} class="inline-flex min-h-11 items-center text-xl font-semibold">{t('app.name')}</a>
@@ -25,6 +31,12 @@
           aria-current={current('/games')}
           class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
         >{t('nav.games')}</a>
+        <a
+          data-testid="nav-stats"
+          href="/stats"
+          aria-current={current('/stats')}
+          class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
+        >{t('nav.stats')}</a>
         <details class="relative">
           <summary
             data-testid="nav-account"
@@ -60,5 +72,11 @@
       aria-current={current('/games')}
       class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
     >{@render gamesIcon()}<span>{t('nav.games')}</span></a>
+    <a
+      data-testid="nav-stats"
+      href="/stats"
+      aria-current={current('/stats')}
+      class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
+    >{@render statsIcon()}<span>{t('nav.stats')}</span></a>
   </nav>
 {/if}

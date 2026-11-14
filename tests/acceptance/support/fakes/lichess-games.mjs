@@ -43,6 +43,11 @@ const TEMPLATES = [
     opp: 'made_up_old2', oppRating: 1500, moves: '1. f3 e5 2. g4 Qh4# 0-1' },
 ];
 
+// US-72: `rating_rook` has 2 rapid games in month 0 (the player's ratings 1600 then 1625).
+export const RATING_PLAYER = 'rating_rook';
+const RATING_TEMPLATES = [1600, 1625].map((r, i) => ({ id: `RatRk0${i + 1}x`, monthOffset: 0, hour: 5 + i, me: 'white', winner: 'white',
+  speed: 'rapid', clock: [600, 0], meRating: r, opp: `made_up_rat${i + 1}`, oppRating: 1400, moves: '1. e4 e5 2. Nf3 Nc6 1-0' }));
+
 /** The end time (epoch ms) of the Lichess game `id`. */
 export function lastMoveAtOf(id, now = new Date()) {
   const t = TEMPLATES.find((x) => x.id === id);
@@ -52,7 +57,7 @@ export function lastMoveAtOf(id, now = new Date()) {
 function toLine(t, player, now) {
   const lastMoveAt = monthStartMs(t.monthOffset, now) + t.hour * HOUR;
   if (t.invalid) return { id: t.id, lastMoveAt };
-  const me = { user: { name: t.meName ?? player, id: player }, rating: 1500 };
+  const me = { user: { name: t.meName ?? player, id: player }, rating: t.meRating ?? 1500 };
   const opp = { user: { name: t.opp, id: t.opp }, rating: t.oppRating };
   const players = t.me === 'white' ? { white: me, black: opp } : { white: opp, black: me };
   const result = t.moves.trim().split(/\s+/).pop();
@@ -85,8 +90,8 @@ function toLine(t, player, now) {
 /** The NDJSON lines (newest first) of `player` with lastMoveAt >= sinceMs. */
 export function streamLines(player, sinceMs, now = new Date(), extras = []) {
   if (player === MANY_PLAYER) return manyLines(sinceMs, now);
-  if (player !== LICHESS_PLAYER) return [];
-  return [...TEMPLATES.map((t) => toLine(t, player, now)), ...extras]
+  if (player !== LICHESS_PLAYER && player !== RATING_PLAYER) return [];
+  return [...(player === RATING_PLAYER ? RATING_TEMPLATES : TEMPLATES).map((t) => toLine(t, player, now)), ...extras]
     .filter((g) => g.lastMoveAt >= sinceMs)
     .sort((a, b) => b.lastMoveAt - a.lastMoveAt)
     .map((g) => JSON.stringify(g));

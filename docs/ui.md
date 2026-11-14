@@ -64,7 +64,7 @@ In `src/app.css` (`@theme`), as CSS variables switched by `data-theme` on `<html
 | `/account` | linked usernames (one row per site: username or a link form, Unlink), language, theme, Delete account (danger, in a modal) | |
 | `/games` | import status line, Sync per site, filters row, list (table from 768px, cards below), empty state | each row to `/games/[id]` |
 | `/games/[id]`, `/games/demo` | board page: board, eval bar, panel with players, the move list, analysis progress, best move, accuracy, eval curve | back to `/games` |
-| `/stats` | filter by site and time control; results by colour, by opening (top 10), by time control; rating curve; mistakes per game by phase | to filtered `/games` |
+| `/stats` | filter by site, time control and period (30d, 90d, 365d, all); results by colour, by opening (top 10), by time control; rating curve; mistakes per game by phase | to filtered `/games` |
 | `/openings` | two repertoire cards (White, Black: positions, due today, learned), `drill-start` | to `/openings/[colour]`, `/openings/drill` |
 | `/openings/[colour]` | board page: play moves to add them, tree of the current position's moves, delete a move (danger) | |
 | `/openings/drill` | board page: the line so far, the opening name, right/wrong feedback, cards left | back to `/openings` |
@@ -101,10 +101,16 @@ In `src/lib/components/` unless said otherwise:
   `onMove`; a `board-move-input` text field accepting SAN or UCI, for keyboard and screen readers), `EvalBar.svelte`
   (white share = `W(cp)`), `MoveList.svelte` (an `<ol>` of move pairs; each move a button with its mark symbol and
   an `aria-label` like "14. Nf3, mistake"), `EvalCurve.svelte` (inline SVG, 0–100 win chance per ply, marks as dots).
+- `ResultBar` (stacked win/draw/loss bar, flex divs; each segment holds its count as text and an `aria-label`; win
+  `--accent`, draw `--muted`, loss `--danger`). `RatingChart` (inline SVG line chart modelled on `EvalCurve`; props
+  `points`, `messages`, `lang`; a `<details>` table of date and rating).
 - Charts are inline SVG built in the component, with a text table alternative (`<details>`).
 - Marks always show their symbol (`?!`, `?`, `??`, best `!`) with their colour, never the colour alone.
 
 ## Screen states
+
+Stats: empty (`stats-empty`, an `EmptyState`: "No games yet" linking to `/games`, or "No games match these filters"
+linking to `/stats`; no block is shown), then the blocks colour, openings, time, rating and mistakes.
 
 Every page has: empty (an `EmptyState` with the next action, e.g. `/games`: "Link a chess.com or Lichess username to
 import your games" with the link form), loading (`Skeleton`, or a progress line on board pages: "Analysing move
@@ -136,7 +142,7 @@ Board and game review ids:
 (`games-row` with `data-game-id`). Keep ids stable when restyling.
 
 Ids of the visitor layout and account pages (shared by the stories):
-- navigation: `nav-login`, `nav-signup`, `nav-games`, `nav-account`, `nav-logout`;
+- navigation: `nav-login`, `nav-signup`, `nav-games`, `nav-stats`, `nav-account`, `nav-logout`;
 - sign up, log in and reset: `signup-email|password|submit`, `login-email|password|submit`, `reset-email|submit`,
   `reset-password`, `reset-password-submit`;
 - account: `account-email|lang|theme|save|delete`, `modal-delete-account`, `delete-password`, `delete-confirm`;
@@ -145,4 +151,9 @@ Ids of the visitor layout and account pages (shared by the stories):
 - games list: `games-empty`, `games-status`, `games-sync-<site>`, `games-filters`, `games-filter-submit`,
   `games-filter-reset`, `games-list`, `games-row` (with `data-game-id`), `games-next`, `games-prev`, `games-none`;
 - game page: `game-details`, `game-site-link`, `game-moves`;
+- stats: `stats-filters` (the GET form), `stats-filter-submit`, `stats-empty`; `stats-colour` with `stats-colour-row`
+  (`data-colour`); `stats-openings` with `stats-openings-colour` and `stats-opening-row`; `stats-time` with
+  `stats-time-row` (`data-time`); `stats-rating` with `stats-rating-series`, `stats-rating-chart`,
+  `stats-rating-summary`, `stats-rating-not-enough`; `stats-mistakes` with `stats-mistakes-phase` (`data-phase`),
+  `stats-mistakes-games`, `stats-mistakes-accuracy`, `stats-mistakes-empty`; `result-bar`;
 - shared: `toast`.

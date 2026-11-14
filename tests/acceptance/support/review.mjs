@@ -123,3 +123,23 @@ export async function postAnalysis(baseUrl, token, gameId, body, { raw } = {}) {
 /** The error of an error answer: { code, field } (field undefined when absent). */
 export const errorOf = (answer) => ({ code: answer.body?.error?.code, field: answer.body?.error?.field });
 
+
+// ---- analyses for the /stats mistakes block (US-73) ----
+/** Body in which only Black's first move (ply 2) loses 300 cp: a blunder of the player who has Black. */
+export function blackDropBodyOf(number, cp = 300) {
+  const { plies } = pgnFacts(fakePgn(number));
+  return analysisBody({ evals: [{ cp: 0 }, { cp: 0 }, ...times(plies - 1, { cp })], best: times(plies, null) });
+}
+
+/** Saves `body` for the chess.com game `number` of `user`; throws unless the server answers 201. */
+export async function saveAnalysisOf(baseUrl, user, number, body) {
+  const id = await gameIdByNumber(baseUrl, user.token, number);
+  const r = await postAnalysis(baseUrl, user.token, id, body);
+  if (r.status !== 201) throw new Error(`setup: saving the analysis of ${number} gave ${r.status}`);
+}
+
+/** The user's two analysed games: White's first move blunders in WHITE_GAME (user White), Black's in BLACK_GAME (user Black). */
+export async function saveTwoAnalyses(baseUrl, user) {
+  await saveAnalysisOf(baseUrl, user, WHITE_GAME, dropBodyOf(WHITE_GAME, -900));
+  await saveAnalysisOf(baseUrl, user, BLACK_GAME, blackDropBodyOf(BLACK_GAME, 900));
+}

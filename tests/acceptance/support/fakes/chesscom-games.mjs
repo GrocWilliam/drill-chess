@@ -83,6 +83,42 @@ TEMPLATES.push(
     tc: '180', eco: 'D06', moves: '1. d4 d5 2. c4 e6 1-0' },
 );
 
+// US-72: rating series. `rating_rook` has 5 blitz games (the player's ratings 1510, 1580, 1490, 1560, 1530 in date
+// order), `rating_bishop` 4 (1500, 1560, 1480, 1540) and `rating_pawn` 1 (1500), all in month 0, the player White.
+[
+  ['rating_rook', 96100001, [1510, 1580, 1490, 1560, 1530]],
+  ['rating_bishop', 96200001, [1500, 1560, 1480, 1540]],
+  ['rating_pawn', 96300001, [1500]],
+].forEach(([only, first, ratings]) =>
+  ratings.forEach((r, i) =>
+    TEMPLATES.push({ id: String(first + i), only, monthOffset: 0, hour: 2 + i, me: 'white', result: ['win', 'resigned'], timeClass: 'blitz',
+      tc: '180', ratings: [r, 1400], eco: 'C20', moves: '1. e4 e5 2. Nf3 Nc6 1-0' })),
+);
+
+// US-71: `opening_owl` has 18 standard games in month -1 (archives: only that month), 13 opening groups:
+// no opening x3 (white win, black win, white draw), C50 "Italian Game" x3 (white win blitz, black win blitz, black loss rapid),
+// "Polish Opening" without ECO x2 (white win, black loss), and 10 single games (A01..A09, B00) with long names.
+{
+  const out = { w: { white: [['win', 'resigned'], '1-0'], black: [['resigned', 'win'], '0-1'] },
+    l: { white: [['resigned', 'win'], '0-1'], black: [['win', 'resigned'], '1-0'] },
+    d: { white: [['repetition', 'repetition'], '1/2-1/2'], black: [['repetition', 'repetition'], '1/2-1/2'] } };
+  const url = (name) => `https://www.chess.com/openings/${name}`;
+  const long = (n) => `Made-Up-Gambit-Number-${n}-With-An-Extremely-Long-Name-Variation-Of-The-Uncommon-Sideline-Attack`;
+  const owl = [
+    ['white', 'w', 'blitz', null, null], ['black', 'w', 'blitz', null, null], ['white', 'd', 'rapid', null, null],
+    ['white', 'w', 'blitz', 'C50', 'Italian-Game'], ['black', 'w', 'blitz', 'C50', 'Italian-Game'], ['black', 'l', 'rapid', 'C50', 'Italian-Game'],
+    ['white', 'w', 'blitz', null, 'Polish-Opening'], ['black', 'l', 'blitz', null, 'Polish-Opening'],
+    ...['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'B00'].map((eco, i) =>
+      [i % 2 ? 'black' : 'white', i % 3 === 0 ? 'w' : 'l', 'blitz', eco, long(i + 1)]),
+  ];
+  owl.forEach(([me, r, timeClass, eco, name], i) => {
+    const [result, tail] = out[r][me];
+    TEMPLATES.push({ id: `96${String(i + 1).padStart(6, '0')}`, only: 'opening_owl', monthOffset: -1, hour: 1 + i, me, result, timeClass,
+      tc: timeClass === 'rapid' ? '600' : '180', ...(eco ? { eco } : {}), ...(name ? { ecoUrl: url(name) } : {}),
+      moves: `1. e4 e5 2. Nf3 Nc6 ${tail}` });
+  });
+}
+
 /** The players that only have their own (`only`) templates. */
 const OWN_FIXTURES = new Set(TEMPLATES.filter((t) => t.only).map((t) => t.only));
 

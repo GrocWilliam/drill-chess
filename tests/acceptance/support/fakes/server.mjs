@@ -38,7 +38,11 @@ function chesscomArchives(path, extras = []) {
     if (m[2]) return [200, { archives: name === 'busy_bishop' ? [-1, 0].map((o) => `${CHESSCOM_API}/pub/player/${name}/games/${monthPath(utcMonth(o))}`) : [] }];
     return [200, { games: archiveGames(name, Number(m[3]), Number(m[4])) }];
   }
-  if (name === 'slow_knight' || name === 'review_rook') {
+  if (name === 'opening_owl') {
+    if (m[2]) return [200, { archives: [`${CHESSCOM_API}/pub/player/${name}/games/${monthPath(utcMonth(-1))}`] }];
+    return [200, { games: archiveGames(name, Number(m[3]), Number(m[4])) }];
+  }
+  if (name === 'slow_knight' || name === 'review_rook' || name === 'rating_rook' || name === 'rating_bishop' || name === 'rating_pawn') {
     if (m[2]) return [200, { archives: [`${CHESSCOM_API}/pub/player/${name}/games/${monthPath(utcMonth(0))}`] }];
     return [200, { games: archiveGames(name, Number(m[3]), Number(m[4])) }];
   }

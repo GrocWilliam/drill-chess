@@ -8,6 +8,7 @@
     rowTestid,
     rowId,
     href,
+    rowAttrs,
     cell,
     label,
     ...rest
@@ -17,6 +18,7 @@
     rowTestid: string;
     rowId: (row: T) => string;
     href: (row: T) => string;
+    rowAttrs?: (row: T) => Record<string, string>;
     cell: Snippet<[T, string]>;
     label: string;
   } & Record<string, unknown> = $props();
@@ -41,6 +43,7 @@
       <tr
         data-testid={rowTestid}
         data-game-id={rowId(row)}
+        {...rowAttrs?.(row)}
         onclick={(e) => open(e, row)}
         class="mb-3 flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 rounded-card border border-border bg-surface p-3 hover:bg-bg md:mb-0 md:table-row md:rounded-none md:border-0 md:border-t md:bg-transparent md:p-0"
       >
