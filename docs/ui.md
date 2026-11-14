@@ -58,7 +58,7 @@ In `src/app.css` (`@theme`), as CSS variables switched by `data-theme` on `<html
 
 | Page | Content | Links |
 |---|---|---|
-| `/` | signed out: pitch (three features as cards), `nav-signup` (the demo link comes with the game-review module); signed in: redirect 303 to `/games` | |
+| `/` | signed out: pitch (three features as cards), `nav-signup`, `landing-demo` (link to `/games/demo`); signed in: redirect 303 to `/games` | |
 | `/signup`, `/login` | one card, centred, max 24rem: fields, primary submit, link to the other and to `/reset` | `next` param kept |
 | `/reset`, `/reset/[token]` | email form; new password form | to `/login` |
 | `/account` | linked usernames (one row per site: username or a link form, Unlink), language, theme, Delete account (danger, in a modal) | |
@@ -70,6 +70,21 @@ In `src/app.css` (`@theme`), as CSS variables switched by `data-theme` on `<html
 | `/openings/drill` | board page: the line so far, the opening name, right/wrong feedback, cards left | back to `/openings` |
 | `/endgames` | the 4 levels, each a grid of position cards (name, goal, mastered badge, streak) | to `/endgames/[id]` |
 | `/endgames/[id]` | board page: goal, lesson, result of the attempt, Retry | back to `/endgames` |
+
+## Board page (game review)
+
+The panel holds, in this order: the game details (players with ratings, result; the demo shows the event),
+`review-progress`, `move-list`, `review-best`, `review-accuracy`, `eval-curve`, the controls row (`review-start`,
+`review-prev`, `review-next`, `review-end`, `review-flip`: 44px ghost buttons), `review-reanalyse` (secondary, not on
+the demo), and the link to the game on its site.
+
+States:
+- analysing: `review-progress` reads "Analysing move N/M"; the board stays usable;
+- done: marks, best move, accuracies, eval curve;
+- error: `review-error` (`role="alert"`) with a `review-retry` button;
+- stored: shown at once, with no analysis;
+- free play on the demo: `review-back-to-game` link;
+- no JavaScript: players, result and moves as text, with the `review-noscript` line.
 
 ## Components
 
@@ -105,7 +120,19 @@ nothing only on hover, `prefers-reduced-motion` turns piece animation off. Board
 ## Test ids
 
 kebab-case `<page>-<element>` (`games-sync-chesscom`, `review-eval-bar`, `drill-board`), shared components their own
-name (`board`, `board-move-input`, `move-list`, `eval-bar`, `toast`, `empty-state`). Repeated items carry their id
+name (`board`, `board-move-input`, `move-list`, `eval-bar`, `toast`, `empty-state`).
+
+Board and game review ids:
+- `board` (also `data-fen`, the FEN shown, and `data-orientation` `white|black`), `board-move-input`,
+  `board-move-invalid`, `board-promotion` (buttons `board-promotion-q`, `board-promotion-r`, `board-promotion-b`,
+  `board-promotion-n`);
+- `eval-bar` (`role="meter"`, `aria-valuenow` = White's win chance, one decimal);
+- `move-list`, `move` (with `data-ply`; the current one `aria-current="true"`);
+- `eval-curve`, `eval-curve-ply` (one click target per ply, with `data-ply`);
+- `review-progress`, `review-best`, `review-accuracy` (with `review-accuracy-white` and `review-accuracy-black`),
+  `review-start`, `review-prev`, `review-next`, `review-end`, `review-flip`, `review-reanalyse`,
+  `review-back-to-game`, `review-error`, `review-retry`, `review-noscript`;
+- `landing-demo`, `games-analysed`. Repeated items carry their id
 (`games-row` with `data-game-id`). Keep ids stable when restyling.
 
 Ids of the visitor layout and account pages (shared by the stories):

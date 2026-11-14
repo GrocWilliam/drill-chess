@@ -61,6 +61,26 @@ export const hasToken = (text, token) => text.split(/[\s  ]+/).includes(token);
 export const formatDate = (epochSeconds, lang) =>
   new Intl.DateTimeFormat(lang, { timeZone: 'UTC' }).format(new Date(epochSeconds * 1000));
 
+/** A number with one decimal as the page language shows it (Intl: `87.3` in en, `87,3` in fr). */
+export const formatOneDecimal = (n, lang) =>
+  new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+
+/**
+ * Per row of `games-list` in order: { id, badges: [{ text, ariaLabel }] } for every element with
+ * data-testid="<testid>" inside the row (text = visible text, ariaLabel = its aria-label or null).
+ */
+export function rowBadges(html, testid = 'games-analysed') {
+  const list = elementHtml(html, 'games-list');
+  if (list == null) return [];
+  return elementsOf(list, 'games-row').map((r) => ({
+    id: /\bdata-game-id="([^"]*)"/.exec(r.open)?.[1] ?? null,
+    badges: elementsOf(r.inner, testid).map((b) => ({
+      text: pageText(b.inner).trim(),
+      ariaLabel: /\baria-label="([^"]*)"/.exec(b.open)?.[1] ?? null,
+    })),
+  }));
+}
+
 /** The end time (epoch seconds) of the fake's alpha_pawn month 0 game with this chess.com game number. */
 export function fakeEndTime(gameNumber) {
   const { year, month } = utcMonth(0);

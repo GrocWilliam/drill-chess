@@ -28,10 +28,11 @@ One SvelteKit app, server-rendered, one process on one port.
 | `src/lib/server/<module>/` | One folder per module: `index.ts` (its public functions), `schema.ts` (its tables), `*.test.ts`. |
 | `src/lib/server/gateway/` | The only code calling outside services: `chesscom.ts`, `lichess.ts`, `tablebase.ts`, `mail.ts`. |
 | `src/lib/server/jobs.ts` | The in-process import job loop. |
-| `src/lib/chess/` | Shared, browser-safe chess code: `rules.ts` (chess.js wrapper), `analysis.ts` (win chance, loss, marks, accuracy, phase: pure functions, also used by the server), `engine.ts` (Stockfish worker client), `Board.svelte` (chessground wrapper), `openings.ts` (name lookup). |
-| `src/lib/components/` | Shared UI components (see `docs/ui.md`). |
+| `src/lib/chess/` | Shared, browser-safe chess code: `rules.ts` (chess.js wrapper), `analysis.ts` (win chance, loss, marks, accuracy, phase: pure functions, also used by the server), `engine.ts` (Stockfish worker client), `Board.svelte` (chessground wrapper), `openings.ts` (name lookup). `EvalBar.svelte`, `MoveList.svelte`, `EvalCurve.svelte`. `engine.ts` and chessground run only in the browser (created in `onMount`); `analysis.ts` holds `computeReview`, used by the server and the demo. |
+| `src/lib/components/` | Shared UI components (see `docs/ui.md`). `GameReview.svelte` is the board page shared by `/games/[id]` and `/games/demo`. |
 | `src/lib/i18n/` | `en.json`, `fr.json` catalogs and `translate`. |
 | `static/` | `stockfish/` (WASM and worker, copied from the npm package at build), `openings/` (the dataset), `demo.pgn`. |
+| `scripts/` | `copy-stockfish.mjs`, run by `prebuild`/`predev`, copies the lite single-threaded engine to `static/stockfish/stockfish.{js,wasm}` (git-ignored). |
 | `src/lib/server/endgames/positions.ts` | The bundled endgame positions. |
 
 ## Module map and build order
@@ -41,7 +42,7 @@ One SvelteKit app, server-rendered, one process on one port.
 | `accounts` | `accounts/` | users, sessions, password reset, preferences (language, theme), account deletion | none |
 | `game-import` | `games/` | linked usernames, import jobs, games, game list and filters | `accounts`, `gateway` |
 | `board` | (`src/lib/chess/`) | board, rules, engine client, analysis functions | none |
-| `game-review` | `review/` | analyses (validate, compute marks, store), review page, demo game | `game-import`, `board` |
+| `game-review` | Server folder `review/` (`index.ts`, `schema.ts`, `demo.ts`) | analyses (validate, compute marks, store), review page, demo game | `game-import`, `board` |
 | `stats` | `stats/` | aggregates over games and analyses (read only) | `game-import`, `game-review` |
 | `openings` | `openings/` | repertoires, positions, cards, SM-2 scheduling, drills | `accounts`, `board` |
 | `endgames` | `endgames/` | bundled positions, attempts, progress, tablebase relay | `accounts`, `board`, `gateway` |
@@ -58,6 +59,7 @@ Build order (one spec each, each `Depends on` the previous): 1 `accounts` + `gam
 - `src/lib/chess/` imports nothing from `src/lib/server/` and nothing Node-only; the server imports `analysis.ts` and
   `rules.ts` from it.
 - Every server module function takes the `userId` it acts for; no module reads the session itself.
+- The `/games` route combines `games` and `review` (the `games-analysed` badge); `games` never imports `review`.
 
 ## Data model
 
@@ -73,9 +75,13 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
   `bullet|blitz|rapid|classical|daily`, clock, colour `white|black`, result `win|draw|loss`, white_name,
   black_name, white_rating, black_rating, eco, opening, pgn, plies; unique (user_id, site, site_game_id); index
   (user_id, ended_at desc)).
-- `game-review`: `analyses` (game_id primary key → `games` ON DELETE CASCADE, depth, evals jsonb: array of
-  `{cp}` or `{mate}` of length plies + 1, best jsonb: array of UCI moves of length plies, marks jsonb: array of
-  `null|inaccuracy|mistake|blunder` of length plies, accuracy_white, accuracy_black, created_at).
+- `game-review`: `analyses` (game_id primary key → `games` ON DELETE CASCADE, user_id → `users` ON DELETE CASCADE,
+  depth 1–30, evals jsonb: array of `{cp}` or `{mate}` of length plies + 1, from White's point of view, `{mate: 0}` =
+  the side to move is mated; best jsonb: array of UCI moves or null of length plies; marks jsonb: array of
+  `null|inaccuracy|mistake|blunder` of length plies; phases jsonb: array of `opening|middlegame|endgame` of length
+  plies, the phase of the position before each move; accuracy_white, accuracy_black, created_at). Re-analysing
+  replaces the row. The server recomputes marks, phases and accuracies from the game's PGN; it never stores marks
+  sent by the browser.
 - `openings`: `repertoires` (id, user_id, colour; unique (user_id, colour)); `repertoire_moves` (id,
   repertoire_id, from_fen (normalised: no move counters), san, uci, to_fen, by `player|opponent`; unique
   (repertoire_id, from_fen, uci); one `player` move per (repertoire_id, from_fen)); `cards` (repertoire_move_id
@@ -87,7 +93,10 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
 
 - Pages use form actions (POST, `use:enhance`, working without JavaScript) for every write except the two board ones.
 - JSON endpoints, under `src/routes/api/`, for what the browser sends from a board page:
-  - `POST /api/games/:id/analysis` body `{depth, evals, best}` → 201 `{marks, accuracyWhite, accuracyBlack}`.
+  - `POST /api/games/:id/analysis` body `{depth, evals, best}` → 201 `{marks, accuracyWhite, accuracyBlack}` (400
+    `invalid_analysis` with `field` `depth|evals|best|body`; 404 for another user's game). Board pages get the engine
+    depth as page data (`engineDepth` from `config()`), never through `$env/static/public`; the current ply is
+    `?ply=N` (clamped, 0 = start), updated with shallow `replaceState`.
   - `GET /api/import/status` → `{jobs: [{site, status, imported, skipped, error}]}` (the games page polls it).
   - `POST /api/openings/:colour/moves` `{fromFen, uci}`, `DELETE /api/openings/:colour/moves/:id` (and its subtree),
     `GET /api/openings/drill` → the next line, `POST /api/openings/cards/:id/review` `{correct}`.
@@ -107,7 +116,7 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
 - Session cookie `session`: a random 32-byte token, `httpOnly`, `Secure` (except on `http://localhost`),
   `SameSite=Lax`, 30 days; the database stores its SHA-256. `hooks.server.ts` resolves it to `locals.user`.
 - Pages under `/games`, `/stats`, `/openings`, `/endgames` and `/account` redirect signed-out visitors to
-  `/login?next=<path>`; API endpoints answer 401. `/games/demo` is public.
+  `/login?next=<path>`; API endpoints answer 401. `/games/demo` is public. `/games/demo` never sends anything to the analysis endpoint.
 - SvelteKit's CSRF origin check stays on. Passwords: `scrypt` (N=2^15, r=8, p=1, 16-byte salt), compared with
   `timingSafeEqual`.
 

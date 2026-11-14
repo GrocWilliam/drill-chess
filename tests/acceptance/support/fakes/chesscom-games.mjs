@@ -73,6 +73,16 @@ SLOW.forEach(([id, mv, res, me], i) =>
     eco: 'C20', moves: `1. ${mv} ${res}` }),
 );
 
+// US-50: `review_rook` has 2 standard games in month 0 and nothing else: 97500001 (U plays Black, 13 plies, ends in
+// checkmate by White, Black blunders on the way; a mate by Black would need an even ply count) and 97500002 (U plays
+// White, 4 plies).
+TEMPLATES.push(
+  { id: '97500001', only: 'review_rook', monthOffset: 0, hour: 9, me: 'black', result: ['win', 'checkmated'], timeClass: 'blitz',
+    tc: '180', eco: 'C41', moves: '1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0' },
+  { id: '97500002', only: 'review_rook', monthOffset: 0, hour: 8, me: 'white', result: ['win', 'resigned'], timeClass: 'blitz',
+    tc: '180', eco: 'D06', moves: '1. d4 d5 2. c4 e6 1-0' },
+);
+
 /** The players that only have their own (`only`) templates. */
 const OWN_FIXTURES = new Set(TEMPLATES.filter((t) => t.only).map((t) => t.only));
 

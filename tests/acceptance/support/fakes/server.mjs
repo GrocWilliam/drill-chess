@@ -11,6 +11,7 @@
 //   `busy_bishop` lists months -1 and 0 (./chesscom-games.mjs: 2 games in month 0, 1 in month -1).
 //   `failing_*` usernames exist; on chess.com they list months -2, -1 and 0 and their month 0 archive always answers
 //   500 (`failing_rook`: 2 games in month -2, 1 in month -1); their Lichess game stream always answers 500.
+// US-50: `review_rook` (chess.com) lists month 0 only, with its 2 games of ./chesscom-games.mjs.
 // US-23: `many_pawns` (Lichess) streams 5,005 standard games mp000001..mp005005 (see ./lichess-games.mjs).
 // Every logged request carries `at` (epoch ms of its arrival).
 import http from 'node:http';
@@ -37,7 +38,7 @@ function chesscomArchives(path, extras = []) {
     if (m[2]) return [200, { archives: name === 'busy_bishop' ? [-1, 0].map((o) => `${CHESSCOM_API}/pub/player/${name}/games/${monthPath(utcMonth(o))}`) : [] }];
     return [200, { games: archiveGames(name, Number(m[3]), Number(m[4])) }];
   }
-  if (name === 'slow_knight') {
+  if (name === 'slow_knight' || name === 'review_rook') {
     if (m[2]) return [200, { archives: [`${CHESSCOM_API}/pub/player/${name}/games/${monthPath(utcMonth(0))}`] }];
     return [200, { games: archiveGames(name, Number(m[3]), Number(m[4])) }];
   }

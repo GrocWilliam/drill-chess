@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import {
-  VIEWPORTS, featureTitleCount, horizontalScroll, launchBrowser, linkInfo, loginLink, newVisitorPage,
-  openLanding, pageBackground, pageLinks, recordRequests, signupLink, topBarText, undersizedTargets,
+  VIEWPORTS, demoLink, featureTitleCount, horizontalScroll, launchBrowser, linkInfo, loginLink, newVisitorPage,
+  openLanding, pageBackground, recordRequests, signupLink, topBarText, undersizedTargets,
 } from '../support/pages.mjs';
 import { startServer } from '../support/server.mjs';
 
@@ -46,7 +46,7 @@ describe('signed-out layout and landing page', () => {
     for (const t of ['Review your games', 'Drill your openings', 'Master endgames']) {
       assert.equal(await featureTitleCount(page, t), 1, t);
     }
-    assert.ok(!(await pageLinks(page)).some((h) => h.includes('/games/demo')));
+    assert.deepEqual(await linkInfo(demoLink(page)), { text: 'Try the demo game', path: '/games/demo' });
     await page.context().close();
   });
 
@@ -57,6 +57,7 @@ describe('signed-out layout and landing page', () => {
     for (const t of ['Analysez vos parties', 'Entraînez vos ouvertures', 'Maîtrisez les finales']) {
       assert.equal(await featureTitleCount(page, t), 1, t);
     }
+    assert.deepEqual(await linkInfo(demoLink(page)), { text: 'Essayer la partie de démo', path: '/games/demo' });
     await page.context().close();
   });
 });

@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import en from './en.json';
 import fr from './fr.json';
-import { pickLang, pickTheme, translate } from './index';
+import { formatOneDecimal, pickLang, pickTheme, translate } from './index';
+
+test('formatOneDecimal', () => {
+  expect(formatOneDecimal(87.3, 'en')).toBe('87.3');
+  expect(formatOneDecimal(100, 'en')).toBe('100.0');
+  expect(formatOneDecimal(87.3, 'fr')).toBe('87,3');
+});
 
 describe('pickLang', () => {
   test('first language only', () => {

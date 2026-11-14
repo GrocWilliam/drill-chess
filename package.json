@@ -9,6 +9,8 @@
   },
   "scripts": {
     "dev": "vite dev",
+    "predev": "node scripts/copy-stockfish.mjs",
+    "prebuild": "node scripts/copy-stockfish.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
@@ -36,9 +38,11 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
     "chess.js": "^1.4.0",
+    "chessground": "^9.2.1",
     "drizzle-orm": "^0.45.4",
     "nodemailer": "^10.5.0",
     "pg": "^8.23.1",
+    "stockfish": "~17.1.0",
     "zod": "^4.6.7"
   }
 }

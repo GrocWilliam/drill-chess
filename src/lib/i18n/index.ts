@@ -24,6 +24,10 @@ export function pickTheme(cookie: string | null | undefined): 'light' | 'dark' |
   return cookie === 'light' || cookie === 'dark' ? cookie : null;
 }
 
+/** A number with one decimal in the language: `87.3` (en), `87,3` (fr). */
+export const formatOneDecimal = (n: number, lang: Lang): string =>
+  new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+
 /** Looks a key up, replacing `{name}` placeholders; a missing key returns the key itself. */
 export function translate(messages: Messages, key: string, params: Record<string, string | number> = {}): string {
   const text = messages[key] ?? key;

@@ -4,7 +4,7 @@
   import ResponsiveTable from '$lib/components/ResponsiveTable.svelte';
   import Button from '$lib/components/Button.svelte';
   import LinkForm from '$lib/components/LinkForm.svelte';
-  import { translate, translatePlural } from '$lib/i18n';
+  import { formatOneDecimal, translate, translatePlural } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import { onMount } from 'svelte';
 
@@ -33,7 +33,11 @@
       : translatePlural(data.messages, data.lang, 'games.status.running', j.imported);
 
   onMount(() => {
-    const timer = setInterval(async () => {
+    // A chained timeout, not setInterval: a late tick under load must not bunch up with the next one (gaps stay ≥ 2 s).
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => (timer = setTimeout(tick, 2000));
+    const tick = async () => {
+      schedule();
       if (!data.active) return;
       try {
         const res = await fetch('/api/import/status', { headers: { accept: 'application/json' } });
@@ -43,8 +47,9 @@
       } catch {
         // network hiccup: try again on the next tick
       }
-    }, 2000);
-    return () => clearInterval(timer);
+    };
+    schedule();
+    return () => clearTimeout(timer);
   });
 </script>
 
@@ -136,6 +141,10 @@
             <span class="break-all">{g.opponent}</span> {#if g.opponentRating !== null}<span class="text-muted">{g.opponentRating}</span>{/if}
           {:else if key === 'result'}
             <span class="font-medium {g.result === 'win' ? 'text-accent' : g.result === 'loss' ? 'text-danger' : 'text-muted'}">{t(`result.${g.result}`)}</span>
+            {#if data.analysed[g.id] !== undefined}
+              {@const accuracy = formatOneDecimal(data.analysed[g.id], data.lang)}
+              <Badge data-testid="games-analysed" role="img" aria-label={translate(data.messages, 'games.accuracy', { value: accuracy })} tone="accent">{accuracy}</Badge>
+            {/if}
           {:else if g.eco || g.opening}
             <span class="text-sm">{[g.eco, g.opening].filter(Boolean).join(' ')}</span>
           {/if}

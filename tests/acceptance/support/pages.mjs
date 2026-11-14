@@ -104,3 +104,5 @@ export async function undersizedTargets(page) {
     return out;
   });
 }
+
+export const demoLink = (page) => page.getByTestId('landing-demo');

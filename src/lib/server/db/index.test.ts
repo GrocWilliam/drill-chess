@@ -80,5 +80,5 @@ describe('migrations on a PGlite directory', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 120_000); // two on-disk PGlite starts plus every migration: past 30 s under CI load
 });
