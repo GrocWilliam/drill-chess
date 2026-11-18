@@ -39,3 +39,15 @@ export function bullet(markdown, name) {
 
 /** Whether the text shows `token` in code backticks, as a whole token. */
 export const hasCode = (text, token) => text.includes(`\`${token}\``);
+
+/** The markdown table row whose first cell is `name` (as in "| `name` |"), flattened to one line; '' when absent. */
+export function tableRow(markdown, name) {
+  const line = markdown.split(/\r?\n/).find((l) => l.startsWith(`| \`${name}\` |`));
+  return line ? flat(line) : '';
+}
+
+/** The cells of the markdown table row whose first cell is `name`, trimmed; [] when absent. */
+export function tableCells(markdown, name) {
+  const row = tableRow(markdown, name);
+  return row ? row.split('|').slice(1, -1).map((cell) => cell.trim()) : [];
+}

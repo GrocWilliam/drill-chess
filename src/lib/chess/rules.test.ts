@@ -96,3 +96,18 @@ describe('terminal', () => {
     expect(terminal('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toBeNull();
   });
 });
+
+import { uciLine } from './rules';
+describe('uciLine', () => {
+  it('replays only maxPlies', () => {
+    expect(uciLine('1. e4 e5 2. Nf3 Nc6', 3)).toEqual(['e2e4', 'e7e5', 'g1f3']);
+    expect(uciLine('1. e4 e5 2. Nf3 Nc6')).toHaveLength(4);
+  });
+});
+
+describe('uciOf with French piece letters', () => {
+  it('reads Cf3 as Nf3 when English fails', () => {
+    expect(uciOf('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'Cf3')).toBe('g1f3');
+    expect(uciOf('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'Ce5')).toBeNull();
+  });
+});

@@ -4,6 +4,7 @@ import { after, before, describe, test } from 'node:test';
 import { redirectTarget, signUp, signedUpUser, uniqueEmail } from '../support/accounts.mjs';
 import { deleteAccount } from '../support/delete-account.mjs';
 import { formatDate, fakeEndTime, gameDetails, hasToken, listedGames, openGame, openGames } from '../support/games.mjs';
+import { expectedOpeningOfMoves } from '../support/openings.mjs';
 import { importStatus, waitForImportEnd } from '../support/imports.mjs';
 import { hasTestId, linkAccount, startAppWithFakeSites } from '../support/links.mjs';
 import { visit } from '../support/visitor.mjs';
@@ -50,10 +51,13 @@ describe('GET /games after the alpha_pawn import', () => {
     assert.ok(hasToken(t, date), `date ${date} missing from: ${t}`);
   });
 
-  test('the second row shows Rapid, 600, White, Draw and C50 with no opening name', () => {
+  test('the second row shows Rapid, 600, White, Draw, C50 and the dataset name of its line (Italian Game...)', () => {
     const t = enList[1].text;
     for (const token of ['Rapid', '600', 'White', 'Draw', 'C50']) assert.ok(hasToken(t, token), `"${token}" missing from: ${t}`);
-    assert.ok(!/Italian|Sicilian|Najdorf|undefined|null/.test(t), t);
+    const name = expectedOpeningOfMoves('1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5')?.name;
+    assert.ok(name?.startsWith('Italian Game'), `dataset name: ${name}`);
+    assert.ok(t.includes(name), `"${name}" missing from: ${t}`);
+    assert.ok(!/undefined|null/.test(t), t);
   });
 
   test('the third row shows Daily, 1/86400 and Loss', () => {

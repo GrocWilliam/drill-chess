@@ -51,6 +51,7 @@ In `src/app.css` (`@theme`), as CSS variables switched by `data-theme` on `<html
   `nav-stats`, `nav-openings`, `nav-endgames` (icon in inline SVG and label); the current one has
   `aria-current="page"` and `--accent` colour. A top bar holds the app name and `nav-account`.
 - From 768px: one top bar with the name (link to `/games`), the same four links, and `nav-account` at the right.
+- The order of the four links is Games, Stats, Openings, Endgames.
 - Signed out: the top bar holds the name, `nav-login` and `nav-signup` (primary).
 - Keyboard on board pages: ← previous, → next, Home start, End end, F flip.
 
@@ -97,8 +98,12 @@ In `src/lib/components/` unless said otherwise:
   text, one action). `Skeleton` (blocks while loading). `Toast` (bottom, 4s, `role="status"`). `Modal` (native
   `<dialog>`, opener `?modal=<kind>` so it works without JavaScript).
 - `ResponsiveTable`: a `<table>` from 768px, a list of cards below, same `data-testid` per row.
+- `BoardLayout` (the board column + panel shell of `/openings/[colour]` and `/openings/drill`, with the same
+  375/1024px rules as the game review board page).
+- `OpeningDrill` (the drill client of `/openings/drill`: plays the line, takes the player's moves, reports right or
+  wrong, then the summary).
 - Chess (in `src/lib/chess/`): `Board.svelte` (chessground; props `fen`, `orientation`, `movable`, `lastMove`,
-  `onMove`; a `board-move-input` text field accepting SAN or UCI, for keyboard and screen readers), `EvalBar.svelte`
+  `shapes` (arrows), `onMove`; a `board-move-input` text field accepting SAN or UCI, for keyboard and screen readers), `EvalBar.svelte`
   (white share = `W(cp)`), `MoveList.svelte` (an `<ol>` of move pairs; each move a button with its mark symbol and
   an `aria-label` like "14. Nf3, mistake"), `EvalCurve.svelte` (inline SVG, 0–100 win chance per ply, marks as dots).
 - `ResultBar` (stacked win/draw/loss bar, flex divs; each segment holds its count as text and an `aria-label`; win
@@ -111,6 +116,13 @@ In `src/lib/components/` unless said otherwise:
 
 Stats: empty (`stats-empty`, an `EmptyState`: "No games yet" linking to `/games`, or "No games match these filters"
 linking to `/stats`; no block is shown), then the blocks colour, openings, time, rating and mistakes.
+
+Openings pages:
+- `/openings`: no repertoire → `openings-empty` in the card (an `EmptyState` with a link to the editor).
+- `/openings/[colour]` (editor): no move from here → `opening-moves-empty`; a rejected move → `opening-error`
+  (`role="alert"`).
+- `/openings/drill`: nothing due → `drill-none`, with `drill-none-edit`; a move gets `drill-feedback` (right or
+  wrong); the end of the line or of the due cards → `drill-summary`.
 
 Every page has: empty (an `EmptyState` with the next action, e.g. `/games`: "Link a chess.com or Lichess username to
 import your games" with the link form), loading (`Skeleton`, or a progress line on board pages: "Analysing move
@@ -157,3 +169,14 @@ Ids of the visitor layout and account pages (shared by the stories):
   `stats-rating-summary`, `stats-rating-not-enough`; `stats-mistakes` with `stats-mistakes-phase` (`data-phase`),
   `stats-mistakes-games`, `stats-mistakes-accuracy`, `stats-mistakes-empty`; `result-bar`;
 - shared: `toast`.
+
+Openings ids:
+- navigation: `nav-openings`;
+- `/openings`: `openings-white` and `openings-black` (the two cards), each holding `openings-positions`, `openings-due`,
+  `openings-learned`, `openings-empty`, `openings-edit-<colour>` and `drill-start`; also `drill-start-both`;
+- `/openings/[colour]`: `opening-name`; `opening-path` with `opening-path-start` and `opening-path-move` (each a link);
+  `opening-moves` with `opening-move` (`data-uci`, `data-by`; each a link one move deeper) and `opening-delete`;
+  `opening-moves-empty`; `opening-error`; `modal-opening-delete`, `opening-delete-confirm`, `opening-delete-cancel`;
+- `/openings/drill`: `drill-board`, `drill-progress` (with `opening-name`), `drill-feedback`; `drill-summary` with
+  `drill-summary-right`, `drill-summary-wrong`, `drill-summary-next`, `drill-summary-back` and `drill-summary-again`;
+  `drill-none` with `drill-none-edit`.

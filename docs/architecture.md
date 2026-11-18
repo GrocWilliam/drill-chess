@@ -24,12 +24,13 @@ One SvelteKit app, server-rendered, one process on one port.
 | Path | What |
 |---|---|
 | `src/routes/` | Pages, form actions and `api/` endpoints. Thin: parse input, call a module, render. No SQL, no `fetch` to outside services. |
+| `src/params/` | Route matchers (`colour`: `white|black`). |
 | `src/lib/server/db/` | Drizzle client (`pg` or PGlite), `schema.ts` re-exporting every module's tables, migrations in `drizzle/`. |
 | `src/lib/server/<module>/` | One folder per module: `index.ts` (its public functions), `schema.ts` (its tables), `*.test.ts`. |
 | `src/lib/server/gateway/` | The only code calling outside services: `chesscom.ts`, `lichess.ts`, `tablebase.ts`, `mail.ts`. |
 | `src/lib/server/jobs.ts` | The in-process import job loop. |
-| `src/lib/chess/` | Shared, browser-safe chess code: `rules.ts` (chess.js wrapper), `analysis.ts` (win chance, loss, marks, accuracy, phase: pure functions, also used by the server), `engine.ts` (Stockfish worker client), `Board.svelte` (chessground wrapper), `openings.ts` (name lookup). `EvalBar.svelte`, `MoveList.svelte`, `EvalCurve.svelte`. `engine.ts` and chessground run only in the browser (created in `onMount`); `analysis.ts` holds `computeReview`, used by the server and the demo. |
-| `src/lib/components/` | Shared UI components (see `docs/ui.md`). `GameReview.svelte` is the board page shared by `/games/[id]` and `/games/demo`. |
+| `src/lib/chess/` | Shared, browser-safe chess code: `rules.ts` (chess.js wrapper), `analysis.ts` (win chance, loss, marks, accuracy, phase: pure functions, also used by the server), `engine.ts` (Stockfish worker client), `Board.svelte` (chessground wrapper; `Board.svelte` takes `shapes` (arrows)), `openings.ts` (opening names from the dataset: pure `parseOpenings`/`matchOpening`, and `openingFor(uci[])` over `static/openings/openings.tsv` loaded with `?raw`; imported by server code only). `EvalBar.svelte`, `MoveList.svelte`, `EvalCurve.svelte`. `engine.ts` and chessground run only in the browser (created in `onMount`); `analysis.ts` holds `computeReview`, used by the server and the demo. |
+| `src/lib/components/` | Shared UI components (see `docs/ui.md`). `GameReview.svelte` is the board page shared by `/games/[id]` and `/games/demo`. `BoardLayout.svelte` is the board column + panel shell of the openings and drill pages. |
 | `src/lib/i18n/` | `en.json`, `fr.json` catalogs and `translate`. |
 | `static/` | `stockfish/` (WASM and worker, copied from the npm package at build), `openings/` (the dataset), `demo.pgn`. |
 | `scripts/` | `copy-stockfish.mjs`, run by `prebuild`/`predev`, copies the lite single-threaded engine to `static/stockfish/stockfish.{js,wasm}` (git-ignored). |
@@ -40,11 +41,11 @@ One SvelteKit app, server-rendered, one process on one port.
 | Module | Server folder | Responsibility | Depends on |
 |---|---|---|---|
 | `accounts` | `accounts/` | users, sessions, password reset, preferences (language, theme), account deletion | none |
-| `game-import` | `games/` | linked usernames, import jobs, games, game list and filters | `accounts`, `gateway` |
+| `game-import` | `games/` | linked usernames, import jobs, games, game list and filters, opening names for games the site gave none (at import, and the startup backfill) | `accounts`, `gateway`, `board` |
 | `board` | (`src/lib/chess/`) | board, rules, engine client, analysis functions | none |
 | `game-review` | Server folder `review/` (`index.ts`, `schema.ts`, `demo.ts`) | analyses (validate, compute marks, store), review page, demo game | `game-import`, `board` |
 | `stats` | `stats/` | aggregates over games and analyses (read only) | `game-import`, `game-review` |
-| `openings` | `openings/` | repertoires, positions, cards, SM-2 scheduling, drills | `accounts`, `board` |
+| `openings` | `openings/` | repertoires, positions, cards, SM-2 scheduling (pure `sm2.ts`, `tree.ts`, `drill.ts`), drills | `accounts`, `board` |
 | `endgames` | `endgames/` | bundled positions, attempts, progress, tablebase relay | `accounts`, `board`, `gateway` |
 
 Build order (one spec each, each `Depends on` the previous): 1 `accounts` + `game-import`, 2 `board` +
@@ -56,8 +57,8 @@ Build order (one spec each, each `Depends on` the previous): 1 `accounts` + `gam
 - A module reads and writes only its own tables; it uses another module through that module's `index.ts`. `stats` is
   the one module that reads `games` and `review` tables directly, read only, through queries in `stats/`.
 - Only `server/gateway/` calls `fetch` to outside services, with the base URL from its env var.
-- `src/lib/chess/` imports nothing from `src/lib/server/` and nothing Node-only; the server imports `analysis.ts` and
-  `rules.ts` from it.
+- `src/lib/chess/` imports nothing from `src/lib/server/` and nothing Node-only; the server imports `analysis.ts`, `rules.ts` and
+  `openings.ts` from it; browser code never imports openings.ts.
 - Every server module function takes the `userId` it acts for; no module reads the session itself.
 - The `/games` route combines `games` and `review` (the `games-analysed` badge); `games` never imports `review`.
 
@@ -74,7 +75,7 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
   created_at, finished_at); `games` (id, user_id, site, site_game_id, url, ended_at, time_class
   `bullet|blitz|rapid|classical|daily`, clock, colour `white|black`, result `win|draw|loss`, white_name,
   black_name, white_rating, black_rating, eco, opening, pgn, plies; unique (user_id, site, site_game_id); index
-  (user_id, ended_at desc)).
+  (user_id, ended_at desc)). `opening` (and a null `eco`) is filled from `openingFor` when the site gives no opening name.
 - `game-review`: `analyses` (game_id primary key → `games` ON DELETE CASCADE, user_id → `users` ON DELETE CASCADE,
   depth 1–30, evals jsonb: array of `{cp}` or `{mate}` of length plies + 1, from White's point of view, `{mate: 0}` =
   the side to move is mated; best jsonb: array of UCI moves or null of length plies; marks jsonb: array of
@@ -82,10 +83,7 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
   plies, the phase of the position before each move; accuracy_white, accuracy_black, created_at). Re-analysing
   replaces the row. The server recomputes marks, phases and accuracies from the game's PGN; it never stores marks
   sent by the browser.
-- `openings`: `repertoires` (id, user_id, colour; unique (user_id, colour)); `repertoire_moves` (id,
-  repertoire_id, from_fen (normalised: no move counters), san, uci, to_fen, by `player|opponent`; unique
-  (repertoire_id, from_fen, uci); one `player` move per (repertoire_id, from_fen)); `cards` (repertoire_move_id
-  unique (the player's move), ease, interval_days, reps, due_on date).
+- `openings`: `repertoires` (id, user_id, colour `white|black`, created_at; unique (user_id, colour)); `repertoire_moves` (id, user_id, repertoire_id → repertoires ON DELETE CASCADE, from_fen and to_fen (normalised: no move counters), san, uci, by `player|opponent`, created_at; unique (repertoire_id, from_fen, uci); partial unique (repertoire_id, from_fen) where by = 'player'; at most 2,000 player moves per repertoire); `cards` (id, user_id, repertoire_move_id unique → repertoire_moves ON DELETE CASCADE (the player's move), ease real, interval_days, reps, due_on date). Positions form a graph keyed by FEN (transpositions share moves); every walk tracks visited positions. Deleting a move deletes every move no longer reachable from the start.
 - `endgames`: `endgame_progress` (user_id, position_id (the bundled id), attempts, passes, streak, mastered_at;
   primary key (user_id, position_id)); `tablebase_cache` (fen primary key, response jsonb, fetched_at).
 
@@ -98,8 +96,10 @@ referencing `users(id) ON DELETE CASCADE`, so deleting a user deletes everything
     depth as page data (`engineDepth` from `config()`), never through `$env/static/public`; the current ply is
     `?ply=N` (clamped, 0 = start), updated with shallow `replaceState`.
   - `GET /api/import/status` → `{jobs: [{site, status, imported, skipped, error}]}` (the games page polls it).
-  - `POST /api/openings/:colour/moves` `{fromFen, uci}`, `DELETE /api/openings/:colour/moves/:id` (and its subtree),
-    `GET /api/openings/drill` → the next line, `POST /api/openings/cards/:id/review` `{correct}`.
+  - `POST /api/openings/:colour/moves` `{fromFen, uci}` → 201/200 `{move}` (400 `illegal_move`/`unknown_position`,
+    409 `player_move_exists`/`repertoire_full`); `DELETE /api/openings/:colour/moves/:id` → `{removed}`;
+    `GET /api/openings/drill?colour=white|black|both&seed=` → `{colour, moves: [{uci, san, by, cardId, due}], opening}`
+    or `{moves: [], nextDue}`; `POST /api/openings/cards/:id/review` `{correct}` → `{card}`.
   - `GET /api/endgames/:id/reply?fen=` → the tablebase move and result; `POST /api/endgames/:id/attempts`
     `{passed}`.
 - Errors: JSON `{ "error": { "code": "<snake_case>", "message": "<English text>" } }` with 400 (invalid input, with
@@ -141,7 +141,7 @@ Every variable is parsed with Zod once, in `src/lib/server/config.ts`.
 ## Deployment
 
 - `Dockerfile` (multi-stage, `node:26-bookworm-slim`): `npm ci`, `npm run build`, runs `node build` on port 8080.
-- `GET /health` answers 200 `{"status":"ok"}` once migrations have run (they run at startup).
+- Startup order: migrations, then `games.backfillOpenings()` (idempotent, opening names for games without one), then the job loop. `GET /health` answers 200 `{"status":"ok"}` once these have run.
 - The import job loop starts with the server; jobs left `running` at startup go back to `queued`.
 
 ## Testing

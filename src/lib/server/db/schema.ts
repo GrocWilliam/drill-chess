@@ -2,3 +2,4 @@
 export * from '../accounts/schema';
 export * from '../games/schema';
 export * from '../review/schema';
+export * from '../openings/schema';

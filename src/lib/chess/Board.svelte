@@ -8,6 +8,7 @@
   import { Chessground } from 'chessground';
   import type { Api } from 'chessground/api';
   import type { Config } from 'chessground/config';
+  import type { DrawShape } from 'chessground/draw';
   import type { Key } from 'chessground/types';
   import 'chessground/assets/chessground.base.css';
   import 'chessground/assets/chessground.brown.css';
@@ -24,8 +25,10 @@
     lastMove?: [string, string];
     onMove?: (uci: string) => void;
     id?: string;
+    /** Arrows drawn on the board (chessground `drawable.autoShapes`). */
+    shapes?: { orig: string; dest: string; brush?: string }[];
   };
-  let { messages, fen, orientation = 'white', movable = 'none', lastMove, onMove, id = 'board' }: Props = $props();
+  let { messages, fen, orientation = 'white', movable = 'none', lastMove, onMove, id = 'board', shapes }: Props = $props();
   const t = (k: string) => translate(messages, k);
 
   const PIECES = [
@@ -65,6 +68,7 @@
       },
       premovable: { enabled: false },
       draggable: { showGhost: true },
+      ...(shapes ? { drawable: { autoShapes: shapes.map((a) => ({ ...a, brush: a.brush ?? 'green' })) as DrawShape[] } } : {}),
     };
   }
 

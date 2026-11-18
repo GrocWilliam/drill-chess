@@ -2,8 +2,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { and, count, eq, gt, gte, isNull, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import type { Lang } from '$lib/i18n';
-import { messagesFor, translate } from '$lib/i18n';
+import type { Lang } from '../../i18n';
+import { messagesFor, translate } from '../../i18n';
 import { config } from '../config';
 import { db } from '../db';
 import { sendMail } from '../gateway/mail';

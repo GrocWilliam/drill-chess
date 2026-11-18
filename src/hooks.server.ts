@@ -2,6 +2,8 @@ import { redirect, type Handle, type ServerInit } from '@sveltejs/kit';
 import { config } from '$lib/server/config';
 import { pickLang, pickTheme } from '$lib/i18n';
 import { getSessionUser, sessionCookie } from '$lib/server/accounts';
+import { backfillOpenings } from '$lib/server/games';
+import { openingMaxPlies } from '$lib/chess/openings';
 import { close, migrate } from '$lib/server/db';
 import { guard } from '$lib/server/guard';
 import { startJobLoop, type JobLoop } from '$lib/server/jobs';
@@ -21,6 +23,13 @@ export const init: ServerInit = async () => {
   } catch (e) {
     console.error('Database migration failed:', e);
     process.exit(1);
+  }
+  try {
+    // Build the openings index now: it takes seconds, and building it during a request stalls the event loop.
+    openingMaxPlies();
+    await backfillOpenings();
+  } catch (e) {
+    console.error('Opening backfill failed:', e);
   }
   jobs = startJobLoop();
 };

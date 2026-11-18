@@ -72,16 +72,23 @@ export function sanOf(fen: string, uci: string): string | null {
   }
 }
 
-/** The UCI of a move given in SAN or UCI, or null when illegal or unreadable. */
+const FRENCH_PIECES: Record<string, string> = { R: 'K', D: 'Q', T: 'R', F: 'B', C: 'N' };
+
+/** The UCI of a move given in SAN (English, else French piece letters: R D T F C) or UCI, or null when illegal or unreadable. */
 export function uciOf(fen: string, sanOrUci: string): string | null {
-  try {
-    const chess = new Chess(fen);
-    const uci = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(sanOrUci.trim());
-    const m = uci ? chess.move({ from: uci[1], to: uci[2], promotion: uci[3] }) : chess.move(sanOrUci.trim());
-    return m.from + m.to + (m.promotion ?? '');
-  } catch {
-    return null;
-  }
+  const text = sanOrUci.trim();
+  const attempt = (san: string): string | null => {
+    try {
+      const chess = new Chess(fen);
+      const uci = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(san);
+      const m = uci ? chess.move({ from: uci[1], to: uci[2], promotion: uci[3] }) : chess.move(san);
+      return m.from + m.to + (m.promotion ?? '');
+    } catch {
+      return null;
+    }
+  };
+  const french = text.replace(/^[RDTFC]/, (c) => FRENCH_PIECES[c]).replace(/=([DTFC])/, (_, c) => `=${FRENCH_PIECES[c]}`);
+  return attempt(text) ?? (french === text ? null : attempt(french));
 }
 
 /** Whether moving `from` → `to` is a legal pawn promotion (a piece must then be chosen). */
@@ -111,4 +118,12 @@ export function terminal(fen: string): 'checkmate' | 'stalemate' | null {
   } catch {
     return null;
   }
+}
+
+/** The UCI moves of `pgn` from the start, only the first `maxPlies` when given. Throws when chess.js cannot parse it. */
+export function uciLine(pgn: string, maxPlies?: number): string[] {
+  const chess = new Chess();
+  chess.loadPgn(pgn);
+  const moves = chess.history({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));
+  return maxPlies === undefined ? moves : moves.slice(0, maxPlies);
 }

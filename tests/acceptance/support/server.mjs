@@ -97,14 +97,14 @@ export async function startServer(opts = {}) {
     }
     rmSync(outbox, { recursive: true, force: true });
   };
-  const deadline = Date.now() + (opts.timeoutMs ?? 30000);
+  const deadline = Date.now() + (opts.timeoutMs ?? 90000);
   for (;;) {
     const h = await health(url);
     if (h?.status === 200) break;
     if (exit !== null || Date.now() > deadline) {
       await stop();
       throw new Error(
-        `server did not answer /health with 200 within ${opts.timeoutMs ?? 30000} ms ` +
+        `server did not answer /health with 200 within ${opts.timeoutMs ?? 90000} ms ` +
           `(last: ${h ? h.status : 'no answer'}, exit: ${JSON.stringify(exit)})\n${log()}`,
       );
     }

@@ -8,7 +8,10 @@ import * as lichess from '../gateway/lichess';
 import { filterConditions, type GameFilters } from './filters';
 import { mapChesscomGame } from './map-chesscom';
 import { mapLichessGame } from './map-lichess';
+import { withOpening } from './opening';
 import { games, importJobs, linkedAccounts } from './schema';
+
+export { backfillOpenings, withOpening } from './opening';
 
 export type Site = 'chesscom' | 'lichess';
 export type LinkResult = 'ok' | 'username_invalid' | 'import_running' | 'username_unknown' | 'site_unavailable';
@@ -204,7 +207,7 @@ async function importChesscom(job: ImportJob, username: string, now: Date) {
         if (!(newest && g && g.end_time * 1000 <= newest.getTime())) skipped++;
         continue;
       }
-      rows.push({ ...mapped, userId: job.userId, site: 'chesscom' as const, plies });
+      rows.push(withOpening({ ...mapped, userId: job.userId, site: 'chesscom' as const, plies }));
     }
     if (rows.length) {
       const inserted = await db.insert(games).values(rows).onConflictDoNothing().returning({ id: games.id });
@@ -234,7 +237,7 @@ async function importLichess(job: ImportJob, username: string, now: Date) {
     const mapped = 'invalid' in g ? null : mapLichessGame(g, username);
     const plies = mapped ? countPlies(mapped.pgn) : null;
     if (!mapped || plies === null) skipped++;
-    else rows.push({ ...mapped, clock: mapped.clock ?? '', userId: job.userId, site: 'lichess', plies });
+    else rows.push(withOpening({ ...mapped, clock: mapped.clock ?? '', userId: job.userId, site: 'lichess', plies }));
     if (++lines % 100 === 0) await flush();
   }
   await flush();

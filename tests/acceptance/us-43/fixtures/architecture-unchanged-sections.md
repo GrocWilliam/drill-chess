@@ -33,7 +33,7 @@ Every variable is parsed with Zod once, in `src/lib/server/config.ts`.
 ## Deployment
 
 - `Dockerfile` (multi-stage, `node:26-bookworm-slim`): `npm ci`, `npm run build`, runs `node build` on port 8080.
-- `GET /health` answers 200 `{"status":"ok"}` once migrations have run (they run at startup).
+- Startup order: migrations, then `games.backfillOpenings()` (idempotent, opening names for games without one), then the job loop. `GET /health` answers 200 `{"status":"ok"}` once these have run.
 - The import job loop starts with the server; jobs left `running` at startup go back to `queued`.
 
 ## Testing

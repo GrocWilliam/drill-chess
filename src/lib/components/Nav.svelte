@@ -14,6 +14,12 @@
   </svg>
 {/snippet}
 
+{#snippet openingsIcon()}
+  <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M4 5h6v14H4zM14 5h6v14h-6z" />
+  </svg>
+{/snippet}
+
 {#snippet statsIcon()}
   <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M5 20V10M12 20V4M19 20v-7" />
@@ -37,6 +43,12 @@
           aria-current={current('/stats')}
           class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
         >{t('nav.stats')}</a>
+        <a
+          data-testid="nav-openings"
+          href="/openings"
+          aria-current={current('/openings')}
+          class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
+        >{t('nav.openings')}</a>
         <details class="relative">
           <summary
             data-testid="nav-account"
@@ -78,5 +90,11 @@
       aria-current={current('/stats')}
       class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
     >{@render statsIcon()}<span>{t('nav.stats')}</span></a>
+    <a
+      data-testid="nav-openings"
+      href="/openings"
+      aria-current={current('/openings')}
+      class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
+    >{@render openingsIcon()}<span>{t('nav.openings')}</span></a>
   </nav>
 {/if}

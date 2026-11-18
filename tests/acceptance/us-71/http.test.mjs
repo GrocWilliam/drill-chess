@@ -8,6 +8,7 @@ import { listedGames } from '../support/games.mjs';
 import { requestStats } from '../support/stats.mjs';
 import { blockText, colourRows, figuresOf, hasBlock, hrefParts, openStats, openingLink, openingRows, userWithManyOpenings } from '../support/stats-page.mjs';
 import { userWithBothSites } from '../support/filters.mjs';
+import { expectedOpeningOfMoves } from '../support/openings.mjs';
 
 let env, url, U;
 after(async () => env?.stop());
@@ -18,6 +19,8 @@ before(async () => {
 });
 
 const UNKNOWN = /Unknown opening/;
+// US-86: the 3 games with no site opening (1. e4 e5 2. Nf3 Nc6) get the dataset's ECO and name (C44, King's Knight Opening: Normal Variation).
+const NAMED = expectedOpeningOfMoves('1. e4 e5 2. Nf3 Nc6');
 
 /** Asserts that the page rows are the API rows: same order, ECO, name, games, wins, draws, losses, score. */
 function assertRowsMatch(rows, api) {
@@ -55,13 +58,16 @@ describe('openings block rows', () => {
     assert.equal(openingRows(r.html).length, 10);
   });
 
-  test('given games with no opening in the top 10, one row reads "Unknown opening", has an empty ECO and no link', async () => {
+  test('given games with no site opening, no row reads "Unknown opening": one row with the dataset ECO and name counts 3 games and links to /games', async () => {
+    assert.ok(NAMED?.eco && NAMED.name, 'setup: the dataset has no line for 1. e4 e5 2. Nf3 Nc6');
     const r = await openStats(url, U.token, '', { acceptLanguage: 'en' });
-    const unknown = openingRows(r.html).filter((x) => UNKNOWN.test(x.text));
-    assert.equal(unknown.length, 1);
-    assert.equal(unknown[0].eco, null);
-    assert.deepEqual(unknown[0].hrefs, []);
-    assert.equal(unknown[0].games, 3);
+    const rows = openingRows(r.html);
+    assert.equal(rows.filter((x) => UNKNOWN.test(x.text)).length, 0);
+    const named = rows.filter((x) => x.eco === NAMED.eco && x.text.includes(NAMED.name));
+    assert.equal(named.length, 1);
+    assert.equal(named[0].games, 3);
+    assert.ok(openingLink(named[0]), named[0].hrefs.join());
+    assert.equal(openingLink(named[0]).path, '/games');
   });
 });
 
@@ -141,14 +147,12 @@ describe('links to /games', () => {
 });
 
 describe('language', () => {
-  test('given the lang cookie fr, the heading reads "Ouvertures" and the unknown group "Ouverture inconnue"', async () => {
+  test('given the lang cookie fr, the heading reads "Ouvertures" and no row reads "Ouverture inconnue"', async () => {
     const fr = await userWithManyOpenings(env, { acceptLanguage: 'fr' });
     const r = await openStats(url, fr.token, '', { cookies: { lang: 'fr' } });
     assert.equal(r.status, 200);
     assert.ok(blockText(r.html, 'stats-openings').includes('Ouvertures'));
-    const unknown = openingRows(r.html).filter((x) => /Ouverture inconnue/.test(x.text));
-    assert.equal(unknown.length, 1);
-    assert.deepEqual(unknown[0].hrefs, []);
+    assert.equal(openingRows(r.html).filter((x) => /Ouverture inconnue/.test(x.text)).length, 0);
   });
 });
 
