@@ -26,6 +26,12 @@
   </svg>
 {/snippet}
 
+{#snippet endgamesIcon()}
+  <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="7" r="3" /><path d="M8 20h8M9 20l1-8h4l1 8" />
+  </svg>
+{/snippet}
+
 <header class="border-b border-border bg-surface">
   <nav aria-label={t('nav.main')} class="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-2">
     <a href={signedIn ? '/games' : '/'} class="inline-flex min-h-11 items-center text-xl font-semibold">{t('app.name')}</a>
@@ -49,6 +55,12 @@
           aria-current={current('/openings')}
           class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
         >{t('nav.openings')}</a>
+        <a
+          data-testid="nav-endgames"
+          href="/endgames"
+          aria-current={current('/endgames')}
+          class="hidden min-h-11 items-center rounded-control px-3 font-medium aria-[current=page]:text-accent md:inline-flex"
+        >{t('nav.endgames')}</a>
         <details class="relative">
           <summary
             data-testid="nav-account"
@@ -96,5 +108,11 @@
       aria-current={current('/openings')}
       class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
     >{@render openingsIcon()}<span>{t('nav.openings')}</span></a>
+    <a
+      data-testid="nav-endgames"
+      href="/endgames"
+      aria-current={current('/endgames')}
+      class="flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-sm text-muted aria-[current=page]:text-accent"
+    >{@render endgamesIcon()}<span>{t('nav.endgames')}</span></a>
   </nav>
 {/if}

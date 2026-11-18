@@ -94,6 +94,7 @@ In `src/lib/components/` unless said otherwise:
   `ghost` (no border), `danger` (border and text `--danger`); 44px minimum height; `aria-busy` while submitting.
 - `Field`: label above, input, hint, error below (`role="alert"`, text in the user's language); the input gets
   `aria-invalid` and `aria-describedby`.
+- `EndgamePlay` (the endgame board page component, built on `BoardLayout` and `Board`).
 - `Card` (surface, border, 10px radius, 16px padding). `Badge` (time class, mark, mastered). `EmptyState` (title,
   text, one action). `Skeleton` (blocks while loading). `Toast` (bottom, 4s, `role="status"`). `Modal` (native
   `<dialog>`, opener `?modal=<kind>` so it works without JavaScript).
@@ -180,3 +181,10 @@ Openings ids:
 - `/openings/drill`: `drill-board`, `drill-progress` (with `opening-name`), `drill-feedback`; `drill-summary` with
   `drill-summary-right`, `drill-summary-wrong`, `drill-summary-next`, `drill-summary-back` and `drill-summary-again`;
   `drill-none` with `drill-none-edit`.
+
+Endgames ids:
+- navigation: `nav-endgames`;
+- `/endgames`: `endgames-level-<n>` (n = 1 to 4) holding `endgames-level-count`; `endgame-card` (with `data-id`)
+  holding `endgame-mastered`, `endgame-streak` and `endgame-attempts`;
+- `/endgames/[id]`: `endgame-name`, `endgame-goal`, `endgame-lesson`, `endgame-moves` with `endgame-move`
+  (`data-failed="true"` on the failing move), `endgame-status`, `endgame-retry`, `endgame-retry-move`, `endgame-back`.

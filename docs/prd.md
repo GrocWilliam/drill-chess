@@ -106,8 +106,8 @@ Endgame trainer:
   basic mates (K+Q v K, K+R v K, K+2B v K), level 2 pawn endings (opposition, square rule, key squares), level 3 rook
   endings (Lucena, Philidor, Vancura), level 4 harder (K+Q v K+R, K+B+N v K, R+P v R defence), about 20 in all.
 - The opponent plays the tablebase's best move (Lichess tablebase, ≤ 7 pieces). An attempt passes when a `win` goal
-  ends in mate, or a `draw` goal reaches a draw (repetition, stalemate, 50-move rule, insufficient material, or the
-  tablebase says draw after the player's move with ≤ 4 pieces left and 30 moves played). It fails when the tablebase
+  ends in mate, or a `draw` goal passes once the player has made 20 moves with the tablebase still saying draw (any number of
+  pieces), or earlier by stalemate, threefold repetition, insufficient material or the 50-move rule. It fails when the tablebase
   result gets worse for the player after one of their moves (win → draw/loss, draw → loss): the failing move is shown.
 - Three passes in a row: the position is mastered. Progress (attempts, passes, mastered) is kept per position.
 

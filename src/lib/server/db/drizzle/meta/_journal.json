@@ -22,6 +22,13 @@
       "when": 1794945538094,
       "tag": "0002_openings",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795008150937,
+      "tag": "0003_endgames",
+      "breakpoints": true
     }
   ]
 }

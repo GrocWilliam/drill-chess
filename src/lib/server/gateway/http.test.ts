@@ -98,6 +98,12 @@ describe('httpGet', () => {
     expect(sleep).toHaveBeenCalledWith(1000);
   });
 
+  it('does not retry with retry: false', async () => {
+    const f = vi.fn(async () => new Response('', { status: 500 }));
+    await expect(httpGet('http://x/', { fetch: f, retry: false })).rejects.toMatchObject({ kind: 'unavailable' });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
   it('maps 404 to not_found without retry', async () => {
     const f = vi.fn(async () => new Response('', { status: 404 }));
     await expect(httpGet('http://x/', { fetch: f })).rejects.toMatchObject({ kind: 'not_found' });

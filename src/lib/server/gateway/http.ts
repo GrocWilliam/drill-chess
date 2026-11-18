@@ -1,4 +1,4 @@
-// The one HTTP client of the gateway: User-Agent, 15 s timeout, one retry on 429/5xx.
+// The one HTTP client of the gateway: User-Agent, 15 s timeout, one retry on 429/5xx (unless `retry: false`).
 import { config } from '../config';
 
 export class GatewayError extends Error {
@@ -18,6 +18,8 @@ export const MAX_RETRY_MS = 10_000;
 export interface HttpOptions {
   headers?: Record<string, string>;
   timeoutMs?: number;
+  /** Retry once on 429/5xx (default true). */
+  retry?: boolean;
   /** Test seams. */
   fetch?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
@@ -88,7 +90,7 @@ async function attempt(url: string, opts: HttpOptions): Promise<Response> {
 /** GET `url` → the 2xx response. Throws GatewayError: 404 `not_found`; timeouts, network errors, other statuses `unavailable`. */
 export async function httpGet(url: string, opts: HttpOptions = {}): Promise<Response> {
   let res = await attempt(url, opts);
-  if (res.status === 429 || res.status >= 500) {
+  if (opts.retry !== false && (res.status === 429 || res.status >= 500)) {
     const delay = retryDelay(res.headers.get('retry-after'));
     await res.body?.cancel().catch(() => {});
     await (opts.sleep ?? defaultSleep)(delay);

@@ -13,10 +13,13 @@
 //   500 (`failing_rook`: 2 games in month -2, 1 in month -1); their Lichess game stream always answers 500.
 // US-50: `review_rook` (chess.com) lists month 0 only, with its 2 games of ./chesscom-games.mjs.
 // US-23: `many_pawns` (Lichess) streams 5,005 standard games mp000001..mp005005 (see ./lichess-games.mjs).
+// US-110: tablebase GET /standard?fen= (./tablebase.mjs); POST /__fake/tablebase/fail {"count": n} makes the next n
+//   /standard requests answer 500 (they are still logged).
 // Every logged request carries `at` (epoch ms of its arrival).
 import http from 'node:http';
 import { freePort } from '../server.mjs';
 import { extraLine, streamLines } from './lichess-games.mjs';
+import { standardFen, tablebaseAnswer } from './tablebase.mjs';
 import { ARCHIVE_OFFSETS, archiveGames, extraGame, month0Games, monthPath, utcMonth } from './chesscom-games.mjs';
 
 const CHESSCOM_API = 'https://api.chess.com';
@@ -72,6 +75,7 @@ export async function startFake() {
   const addedChesscom = []; // { name, game }
   const addedLichess = []; // { name, line }
   const busySeen = new Set(); // paths of busy_* players already answered 429
+  let tablebaseFailures = 0; // the next n /standard requests answer 500
   const server = http.createServer((req, res) => {
     const path = req.url ?? '/';
     const json = (status, body) => {
@@ -79,6 +83,15 @@ export async function startFake() {
       res.end(JSON.stringify(body));
     };
     if (path === '/__fake/requests') return json(200, log);
+    if (req.method === 'POST' && path === '/__fake/tablebase/fail') {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        tablebaseFailures = Number(JSON.parse(raw || '{}').count) || 0;
+        json(200, { ok: true });
+      });
+      return;
+    }
     if (req.method === 'POST' && path === '/__fake/add-game') {
       let raw = '';
       req.on('data', (c) => (raw += c));
@@ -108,6 +121,13 @@ export async function startFake() {
     answer(req, res, path, json);
   });
   function answer(req, res, path, json) {
+    if (req.method === 'GET' && new URL(path, 'http://fake').pathname === '/standard') {
+      if (tablebaseFailures > 0) {
+        tablebaseFailures -= 1;
+        return json(500, { error: 'failing' });
+      }
+      return json(...tablebaseAnswer(standardFen(path)));
+    }
     const stream = req.method === 'GET' ? /^\/api\/games\/user\/([^/?#]+)(?:\?(.*))?$/.exec(path) : null;
     if (stream) {
       const name = decodeURIComponent(stream[1]).toLowerCase();
@@ -135,6 +155,11 @@ export async function startFake() {
     addGame: async (site, username, game) => {
       const r = await fetch(`${url}/__fake/add-game`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site, username, game }) });
       if (!r.ok) throw new Error(`setup: add-game answered ${r.status}`);
+    },
+    /** US-110: the next `count` tablebase /standard requests answer 500. */
+    failTablebase: async (count) => {
+      const r = await fetch(`${url}/__fake/tablebase/fail`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count }) });
+      if (!r.ok) throw new Error(`setup: tablebase/fail answered ${r.status}`);
     },
     requests: async () => (await fetch(`${url}/__fake/requests`)).json(),
     stop: () => new Promise((res) => (server.closeAllConnections?.(), server.close(res))),

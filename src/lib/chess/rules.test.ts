@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countPlies } from './rules';
+import { countPlies, halfmoveClock, insufficientMaterial, validFen } from './rules';
 
 describe('countPlies', () => {
   it('counts the half-moves', () => {
@@ -109,5 +109,21 @@ describe('uciOf with French piece letters', () => {
   it('reads Cf3 as Nf3 when English fails', () => {
     expect(uciOf('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'Cf3')).toBe('g1f3');
     expect(uciOf('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'Ce5')).toBeNull();
+  });
+});
+
+describe('validFen, insufficientMaterial, halfmoveClock', () => {
+  it('validates FENs', () => {
+    expect(validFen('not a fen')).toBe(false);
+    expect(validFen('8/8/8/8/8/8/8/8 w - - 0 1')).toBe(false);
+    expect(validFen('4k3/8/8/8/8/8/4R3/4K3 w - - 0 1')).toBe(false);
+    expect(validFen('8/8/8/4k3/8/8/8/3QK3 w - - 0 1')).toBe(true);
+  });
+  it('detects insufficient material', () => {
+    expect(insufficientMaterial('8/8/8/4k3/8/8/8/4K3 w - - 0 1')).toBe(true);
+    expect(insufficientMaterial('8/8/8/4k3/8/8/8/3QK3 w - - 0 1')).toBe(false);
+  });
+  it('reads the halfmove clock', () => {
+    expect(halfmoveClock('8/8/8/4k3/8/8/8/3QK3 w - - 37 60')).toBe(37);
   });
 });

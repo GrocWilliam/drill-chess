@@ -4,6 +4,23 @@ import { repoFile } from './repo.mjs';
 export const architectureDoc = () => repoFile('docs/architecture.md');
 export const uiDoc = () => repoFile('docs/ui.md');
 export const projectMemoryDoc = () => repoFile('CLAUDE.md');
+export const productDoc = () => repoFile('docs/prd.md');
+
+/**
+ * The lines from the one that starts with `start` up to (not including) the one that starts with `stop`, flattened
+ * to one line; '' when `start` is absent. Used for plain-text sections (no `## ` heading) such as "Endgame trainer:".
+ */
+export function between(markdown, start, stop) {
+  const lines = markdown.split(/\r?\n/);
+  const first = lines.findIndex((line) => line.startsWith(start));
+  if (first < 0) return '';
+  const body = [];
+  for (const line of lines.slice(first + 1)) {
+    if (line.startsWith(stop)) break;
+    body.push(line);
+  }
+  return flat([lines[first], ...body].join('\n'));
+}
 
 /** The text with every run of whitespace (line breaks included, NBSP too) turned into one space. */
 export const flat = (text) => text.replace(/\s+/g, ' ').trim();

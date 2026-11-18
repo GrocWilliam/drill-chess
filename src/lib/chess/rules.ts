@@ -1,5 +1,5 @@
 // Chess rules through chess.js: browser-safe, shared by the server and the pages.
-import { Chess } from 'chess.js';
+import { Chess, validateFen } from 'chess.js';
 
 /** The number of half-moves of `pgn`, or null when chess.js cannot parse it (an illegal move, a bad header...). */
 export function countPlies(pgn: string): number | null {
@@ -126,4 +126,27 @@ export function uciLine(pgn: string, maxPlies?: number): string[] {
   chess.loadPgn(pgn);
   const moves = chess.history({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));
   return maxPlies === undefined ? moves : moves.slice(0, maxPlies);
+}
+
+/** True when chess.js accepts the FEN (structure, kings, side not to move not in check). */
+export function validFen(fen: string): boolean {
+  if (!validateFen(fen).ok) return false;
+  try {
+    new Chess(fen);
+    // chess.js accepts a position where the side not to move is in check: flip the turn and test.
+    const f = fen.trim().split(/\s+/);
+    f[1] = f[1] === 'w' ? 'b' : 'w';
+    f[3] = '-';
+    return !new Chess(f.join(' ')).isCheck();
+  } catch {
+    return false;
+  }
+}
+
+export function insufficientMaterial(fen: string): boolean {
+  return new Chess(fen).isInsufficientMaterial();
+}
+
+export function halfmoveClock(fen: string): number {
+  return Number.parseInt(fen.trim().split(/\s+/)[4] ?? '0', 10) || 0;
 }
